@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@theme {
+  --color-bsc-blue-dark: #00377b;
+  --color-bsc-blue-medium: #0052a2;
+  --color-bsc-white: #ffffff;
+  
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  background-color: var(--color-bsc-white);
+  color: var(--color-bsc-blue-dark);
+}
