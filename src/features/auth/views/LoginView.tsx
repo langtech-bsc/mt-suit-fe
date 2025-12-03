@@ -127,7 +127,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
               )}
 
               <Input
-                label="Email"
+                label="Correo electrónico"
                 type="email"
                 placeholder="usuario@bsc.es"
                 autoComplete="email"

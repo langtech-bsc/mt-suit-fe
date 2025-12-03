@@ -25,3 +25,6 @@ export type { SwitchProps } from "./Switch";
 
 export { Alert } from "./Alert";
 export type { AlertProps, AlertVariant } from "./Alert";
+
+export { PageLoader } from "./PageLoader";
+export type { PageLoaderProps } from "./PageLoader";

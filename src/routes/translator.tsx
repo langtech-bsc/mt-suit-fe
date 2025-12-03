@@ -1,6 +1,12 @@
+import { lazy } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { TranslatorView } from '../features/translator/views/TranslatorView'
 import { useAuthStore } from '../features/auth/store/auth.store'
+
+const TranslatorView = lazy(() =>
+  import('../features/translator/views/TranslatorView').then((module) => ({
+    default: module.TranslatorView,
+  })),
+)
 
 export const Route = createFileRoute('/translator')({
   beforeLoad: ({ location }) => {

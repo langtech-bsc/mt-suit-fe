@@ -1,15 +1,21 @@
+import { lazy } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
-import { LoginView } from '../features/auth/views/LoginView'
 import { useAuthStore } from '../features/auth/store/auth.store'
 import type { AppRoutePath } from './types'
+
+const LoginView = lazy(() =>
+  import('../features/auth/views/LoginView').then((module) => ({
+    default: module.LoginView,
+  })),
+)
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
   reason: z.string().optional(),
 })
 
-const allowedRoutes: AppRoutePath[] = ['/', '/about', '/translator', '/ui']
+const allowedRoutes: AppRoutePath[] = ['/', '/about', '/translator', '/ui'] // NOSONAR
 
 const sanitizeRedirect = (value?: string | null): AppRoutePath => {
   if (!value) {

@@ -12,7 +12,7 @@ function Index() {
         <p className="text-sm uppercase tracking-[0.3em] text-white/70">BSC Translation</p>
         <h1 className="mt-4 text-4xl font-semibold leading-tight">Traductor especializado con governance y control de acceso</h1>
         <p className="mt-3 text-base text-white/80">
-          Gestiona traducción, grammar checker y post-editing en una única interfaz segura con autenticación corporativa.
+          Gestiona traducción, revisión gramatical y posedición en una única interfaz segura con autenticación corporativa.
         </p>
         <div className="mt-6 flex flex-wrap gap-4">
           <Link
@@ -53,11 +53,11 @@ const features = [
   {
     caption: 'Experiencia unificada',
     title: 'Traducción completa',
-    description: 'Traducción neural, grammar checker y post-edición integradas en un mismo flujo.',
+    description: 'Traducción neural, revisión gramatical y posedición integradas en un mismo flujo.',
   },
   {
     caption: 'Observabilidad',
-    title: 'Auditoría & Logs',
-    description: 'Seguimiento de sesiones para detectar expiraciones y tracear actividad crítica.',
+    title: 'Auditoría y registros',
+    description: 'Seguimiento de sesiones para detectar expiraciones y rastrear actividad crítica.',
   },
 ]

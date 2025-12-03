@@ -13,9 +13,9 @@ import {
 } from "../components/ui";
 
 const selectOptions = [
-    { value: "es", label: "Spanish" },
-    { value: "en", label: "English" },
-    { value: "ca", label: "Catalan" },
+    { value: "es", label: "Español" },
+    { value: "en", label: "Inglés" },
+    { value: "ca", label: "Catalán" },
 ];
 
 export const Route = createFileRoute("/ui")({
@@ -38,50 +38,50 @@ function UIShowcase() {
     return (
         <div className="space-y-8 bg-gradient-to-b from-white to-blue-50/40 p-6">
             <header>
-                <p className="text-sm uppercase tracking-wide text-bsc-blue-medium">BSC UI Toolkit</p>
-                <h1 className="text-3xl font-bold text-bsc-blue-dark">Component Showcase</h1>
+                <p className="text-sm uppercase tracking-wide text-bsc-blue-medium">Kit UI del BSC</p>
+                <h1 className="text-3xl font-bold text-bsc-blue-dark">Galería de componentes</h1>
                 <p className="text-gray-600 mt-2 max-w-2xl">
                     Revisa los componentes primitivos disponibles, copia los ejemplos y úsalos en cualquier pantalla.
                 </p>
             </header>
 
             <SectionWrapper>
-                <SectionTitle>Buttons</SectionTitle>
+                <SectionTitle>Botones</SectionTitle>
                 <div className="flex flex-wrap gap-3">
-                    <Button variant="primary">Primary</Button>
-                    <Button variant="secondary">Secondary</Button>
-                    <Button variant="outline">Outline</Button>
-                    <Button variant="ghost">Ghost</Button>
-                    <Button variant="danger">Danger</Button>
-                    <Button size="sm">Small</Button>
-                    <Button size="lg">Large</Button>
+                    <Button variant="primary">Primario</Button>
+                    <Button variant="secondary">Secundario</Button>
+                    <Button variant="outline">Contorno</Button>
+                    <Button variant="ghost">Transparente</Button>
+                    <Button variant="danger">Peligro</Button>
+                    <Button size="sm">Pequeño</Button>
+                    <Button size="lg">Grande</Button>
                     <Button fullWidth className="max-w-xs">
-                        Full width
+                        Ancho completo
                     </Button>
                 </div>
             </SectionWrapper>
 
             <SectionWrapper>
-                <SectionTitle>Form Fields</SectionTitle>
+                <SectionTitle>Campos de formulario</SectionTitle>
                 <div className="grid gap-6 md:grid-cols-2">
-                    <Input label="Input" placeholder="Escribe algo..." helperText="Texto auxiliar" />
-                    <Input label="Input con error" placeholder="Error state" error="Mensaje de error" />
-                    <Select label="Select" defaultValue="es" options={selectOptions} helperText="Opciones básicas" />
-                    <Select label="Select deshabilitado" disabled value="es" options={selectOptions} />
-                    <Textarea label="Textarea" rows={4} placeholder="Texto multilinea" />
-                    <Textarea label="Textarea con error" error="Requerido" rows={4} />
+                    <Input label="Campo de texto" placeholder="Escribe algo..." helperText="Texto auxiliar" />
+                    <Input label="Campo con error" placeholder="Estado con error" error="Mensaje de error" />
+                    <Select label="Selector" defaultValue="es" options={selectOptions} helperText="Opciones básicas" />
+                    <Select label="Selector deshabilitado" disabled value="es" options={selectOptions} />
+                    <Textarea label="Área de texto" rows={4} placeholder="Texto multilínea" />
+                    <Textarea label="Área con error" error="Requerido" rows={4} />
                 </div>
             </SectionWrapper>
 
             <SectionWrapper>
-                <SectionTitle>Badges</SectionTitle>
+                <SectionTitle>Insignias</SectionTitle>
                 <div className="flex flex-wrap gap-3">
                     <Badge>Etiqueta</Badge>
-                    <Badge variant="success">Success</Badge>
-                    <Badge variant="warning">Warning</Badge>
-                    <Badge variant="danger">Danger</Badge>
+                    <Badge variant="success">Éxito</Badge>
+                    <Badge variant="warning">Advertencia</Badge>
+                    <Badge variant="danger">Peligro</Badge>
                     <Badge variant="info" icon={<span className="text-base">ℹ️</span>}>
-                        Info + icono
+                        Información + ícono
                     </Badge>
                     <Badge variant="outline" size="sm">
                         Compacto
@@ -90,18 +90,18 @@ function UIShowcase() {
             </SectionWrapper>
 
             <SectionWrapper>
-                <SectionTitle>Selection Controls</SectionTitle>
+                <SectionTitle>Controles de selección</SectionTitle>
                 <div className="grid gap-4">
-                    <Checkbox label="Checkbox" helperText="Texto auxiliar" defaultChecked />
-                    <Checkbox label="Checkbox con error" error="Requerido" />
+                    <Checkbox label="Casilla" helperText="Texto auxiliar" defaultChecked />
+                    <Checkbox label="Casilla con error" error="Requerido" />
                     <Checkbox label="Indeterminado" indeterminate description="Ideal para seleccionar grupos" />
-                    <Switch label="Switch" description="Activa o desactiva" defaultChecked />
-                    <Switch label="Switch con error" error="Debe estar activo" />
+                    <Switch label="Interruptor" description="Activa o desactiva" defaultChecked />
+                    <Switch label="Interruptor con error" error="Debe estar activo" />
                 </div>
             </SectionWrapper>
 
             <SectionWrapper>
-                <SectionTitle>Alerts</SectionTitle>
+                <SectionTitle>Alertas</SectionTitle>
                 <div className="space-y-4">
                     <Alert title="Información" description="Mensajes neutros para el usuario." />
                     <Alert variant="success" title="Listo">

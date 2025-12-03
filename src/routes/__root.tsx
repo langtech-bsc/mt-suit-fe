@@ -1,6 +1,7 @@
+import { Suspense } from 'react'
 import { createRootRoute, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { Button } from '../components/ui'
+import { Button, PageLoader } from '../components/ui'
 import { useAuthStore } from '../features/auth/store/auth.store'
 import { SessionManager } from '../features/auth/components/SessionManager'
 
@@ -30,10 +31,10 @@ const RootLayout = () => {
               Traductor
             </Link>
             <Link to="/about" className="[&.active]:text-bsc-blue-medium">
-              About
+              Acerca de
             </Link>
             <Link to="/ui" className="[&.active]:text-bsc-blue-medium">
-              UI Kit
+              Catálogo UI
             </Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -57,7 +58,9 @@ const RootLayout = () => {
           </div>
         </div>
       )}
-      <Outlet />
+      <Suspense fallback={<PageLoader message="Preparando interfaz…" />}>
+        <Outlet />
+      </Suspense>
       <TanStackRouterDevtools />
     </>
   )
