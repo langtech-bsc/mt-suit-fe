@@ -21,6 +21,7 @@ export const SessionManager = () => {
     }
 
     const timerId = globalThis.setTimeout(() => {
+      alert('Tu sesión ha expirado. Serás redirigido a la página de inicio de sesión.')
       logout().finally(() => {
         navigate({ to: '/login', search: { reason: 'expired' }, replace: true })
       })

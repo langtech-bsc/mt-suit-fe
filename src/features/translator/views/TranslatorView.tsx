@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 import { LanguageSelector } from '../../../components/LanguageSelector'
-import { Alert, Badge, Button, Card, Textarea } from '../../../components/ui'
-import { useAuthStore } from '../../auth/store/auth.store'
+import { Alert, Button, Card, Textarea } from '../../../components/ui'
 
 const TASKS = [
   {
@@ -25,9 +23,6 @@ const TASKS = [
 type TaskId = (typeof TASKS)[number]['id']
 
 export const TranslatorView = () => {
-  const navigate = useNavigate()
-  const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
 
   const [task, setTask] = useState<TaskId>('translation')
   const [sourceLang, setSourceLang] = useState('es')
@@ -41,14 +36,8 @@ export const TranslatorView = () => {
     null,
   )
 
-  const displayRoles = useMemo(() => user?.roles ?? [], [user?.roles])
   const selectedTask = useMemo(() => TASKS.find((item) => item.id === task), [task])
   const showMachineTranslation = task === 'post-editing'
-
-  const handleLogout = async () => {
-    await logout()
-    navigate({ to: '/login' })
-  }
 
   const handleProcess = () => {
     if (!inputText && !file) {
@@ -86,37 +75,6 @@ export const TranslatorView = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-blue-50/40 to-blue-100/20 font-sans text-bsc-blue-dark">
-      <header className="bg-bsc-blue-dark/95 text-white shadow-lg">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xs font-bold text-bsc-blue-dark">
-              BSC
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-wide">BSC Translation AI</h1>
-              <p className="text-xs opacity-80">Barcelona Supercomputing Center</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-right text-xs">
-              <p className="font-semibold">{user?.fullName ?? 'Usuario'}</p>
-              {displayRoles.length > 0 && (
-                <div className="flex flex-wrap justify-end gap-1">
-                  {displayRoles.map((role) => (
-                    <Badge key={role} variant="outline" size="sm">
-                      {role}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Cerrar sesión
-            </Button>
-          </div>
-        </div>
-      </header>
 
       <main className="container mx-auto flex flex-grow flex-col gap-6 px-6 py-10">
         <section className="space-y-2">
