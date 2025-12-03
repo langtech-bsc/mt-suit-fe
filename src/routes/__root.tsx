@@ -1,23 +1,66 @@
-import { createRootRoute, Link, Outlet } from '@tanstack/react-router'
+import { createRootRoute, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { Button } from '../components/ui'
+import { useAuthStore } from '../features/auth/store/auth.store'
+import { SessionManager } from '../features/auth/components/SessionManager'
 
-const RootLayout = () => (
-  <>
-    <div className="p-4 flex gap-4 text-sm font-medium">
-      <Link to="/" className="[&.active]:text-bsc-blue-medium">
-        Home
-      </Link>
-      <Link to="/about" className="[&.active]:text-bsc-blue-medium">
-        About
-      </Link>
-      <Link to="/ui" className="[&.active]:text-bsc-blue-medium">
-        UI Kit
-      </Link>
-    </div>
-    <hr />
-    <Outlet />
-    <TanStackRouterDevtools />
-  </>
-)
+const RootLayout = () => {
+  const { location } = useRouterState()
+  const navigate = useNavigate()
+  const isLoginRoute = location.pathname === '/login'
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const status = useAuthStore((state) => state.status)
+
+  const handleLogout = async () => {
+    await logout()
+    navigate({ to: '/login', replace: true })
+  }
+
+  return (
+    <>
+      <SessionManager />
+      {!isLoginRoute && (
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 text-sm font-medium">
+          <nav className="flex flex-wrap items-center gap-4">
+            <Link to="/" className="[&.active]:text-bsc-blue-medium">
+              Inicio
+            </Link>
+            <Link to="/translator" className="[&.active]:text-bsc-blue-medium">
+              Traductor
+            </Link>
+            <Link to="/about" className="[&.active]:text-bsc-blue-medium">
+              About
+            </Link>
+            <Link to="/ui" className="[&.active]:text-bsc-blue-medium">
+              UI Kit
+            </Link>
+          </nav>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="text-xs text-gray-600">{user.email}</span>
+                <Button size="sm" variant="outline" onClick={handleLogout}>
+                  Cerrar sesión
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={status === 'authenticating'}
+                onClick={() => navigate({ to: '/login' })}
+              >
+                Iniciar sesión
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+      <Outlet />
+      <TanStackRouterDevtools />
+    </>
+  )
+}
 
 export const Route = createRootRoute({ component: RootLayout })
