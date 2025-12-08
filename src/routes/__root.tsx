@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { createRootRoute, Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Button, PageLoader } from '../components/ui'
+import { BrandLogo } from '../components/BrandLogo'
 import { useAuthStore } from '../features/auth/store/auth.store'
 import { SessionManager } from '../features/auth/components/SessionManager'
 
@@ -22,21 +23,27 @@ const RootLayout = () => {
     <>
       <SessionManager />
       {!isLoginRoute && (
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 text-sm font-medium">
-          <nav className="flex flex-wrap items-center gap-4">
-            <Link to="/" className="[&.active]:text-bsc-blue-medium">
-              Inicio
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-4 py-3 text-sm font-medium">
+          <div className="flex flex-1 items-center gap-6">
+            <Link to="/" className="inline-flex items-center gap-2" aria-label="Ir al inicio BSC Translation">
+              <BrandLogo showText={false} imgClassName="h-8" />
+             
             </Link>
-            <Link to="/translator" className="[&.active]:text-bsc-blue-medium">
-              Traductor
-            </Link>
-            <Link to="/about" className="[&.active]:text-bsc-blue-medium">
-              Acerca de
-            </Link>
-            <Link to="/ui" className="[&.active]:text-bsc-blue-medium">
-              Catálogo UI
-            </Link>
-          </nav>
+            <nav className="flex flex-wrap items-center gap-4">
+              <Link to="/" className="[&.active]:text-bsc-blue-medium">
+                Inicio
+              </Link>
+              <Link to="/translator" className="[&.active]:text-bsc-blue-medium">
+                Traductor
+              </Link>
+              <Link to="/about" className="[&.active]:text-bsc-blue-medium">
+                Acerca de
+              </Link>
+              <Link to="/ui" className="[&.active]:text-bsc-blue-medium">
+                Catálogo UI
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-3">
             {user ? (
               <>

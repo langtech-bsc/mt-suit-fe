@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { BrandLogo } from '../../../components/BrandLogo'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { Alert, Button, Card, Textarea } from '../../../components/ui'
 
@@ -77,7 +78,12 @@ export const TranslatorView = () => {
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-blue-50/40 to-blue-100/20 font-sans text-bsc-blue-dark">
 
       <main className="container mx-auto flex flex-grow flex-col gap-6 px-6 py-10">
-        <section className="space-y-2">
+        <section className="space-y-4">
+          <BrandLogo
+            label="Barcelona Supercomputing Center"
+            tagline="Intelligent Translation Suite"
+            className="justify-center md:justify-start"
+          />
           <p className="text-sm uppercase tracking-[0.35em] text-bsc-blue-medium">Flujo inteligente</p>
           <h2 className="text-3xl font-semibold text-bsc-blue-dark">Traductor, posedición y revisión gramatical</h2>
           <p className="text-sm text-gray-600">

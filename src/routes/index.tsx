@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Card } from '../components/ui'
+import { BrandLogo } from '../components/BrandLogo'
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -8,7 +9,8 @@ export const Route = createFileRoute('/')({
 function Index() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-      <section className="rounded-3xl bg-gradient-to-r from-bsc-blue-dark via-bsc-blue-medium to-sky-500 p-10 text-white shadow-2xl">
+      <section className="rounded-3xl bg-gradient-to-r from-bsc-blue-dark via-bsc-blue-medium to-sky-500 p-10 text-white shadow-2xl space-y-3">
+        <BrandLogo textTone="light" tagline="Translation Intelligence Platform" className="justify-start" />
         <p className="text-sm uppercase tracking-[0.3em] text-white/70">BSC Translation</p>
         <h1 className="mt-4 text-4xl font-semibold leading-tight">Traductor especializado con governance y control de acceso</h1>
         <p className="mt-3 text-base text-white/80">
