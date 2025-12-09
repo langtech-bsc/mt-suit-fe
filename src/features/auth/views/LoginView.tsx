@@ -103,14 +103,6 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
           <ul className="space-y-3 text-sm text-blue-100/90">
             <li className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" /> {" "}
-              Modelos entrenados con dominios especializados.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" /> {" "}
-              Control de acceso basado en roles y auditoría interna.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" /> {" "}
               Experiencia consistente para traducción, grammar checker y post-editing.
             </li>
           </ul>

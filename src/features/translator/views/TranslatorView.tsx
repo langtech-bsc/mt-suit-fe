@@ -11,7 +11,7 @@ const TASKS = [
   },
   {
     id: 'post-editing',
-    label: 'Posedición',
+    label: 'Postedición',
     description: 'Mejora una salida existente corrigiendo estilo y errores.',
   },
   {
@@ -85,7 +85,7 @@ export const TranslatorView = () => {
             className="justify-center md:justify-start"
           />
           <p className="text-sm uppercase tracking-[0.35em] text-bsc-blue-medium">Flujo inteligente</p>
-          <h2 className="text-3xl font-semibold text-bsc-blue-dark">Traductor, posedición y revisión gramatical</h2>
+          <h2 className="text-3xl font-semibold text-bsc-blue-dark">Traductor, postedición y revisión gramatical</h2>
           <p className="text-sm text-gray-600">
             Selecciona el flujo, define idiomas y ofrece texto o documentos. Te mostraremos el resultado simulado mientras
             se integra el backend.
@@ -159,7 +159,7 @@ export const TranslatorView = () => {
           {showMachineTranslation && (
             <Textarea
               label="Traducción automática (opcional)"
-              placeholder="Solo para posedición: pega aquí la traducción a refinar."
+              placeholder="Solo para postedición: pega aquí la traducción a refinar."
               rows={6}
               value={machineTranslation}
               onChange={(event) => setMachineTranslation(event.target.value)}
