@@ -37,16 +37,12 @@ FROM node:20-alpine AS production
 # Instalar serve globalmente
 RUN npm install -g serve
 
-# Crear usuario no-root
-RUN addgroup -g 1000 appgroup && \
-    adduser -u 1000 -G appgroup -s /bin/sh -D appuser
-
 WORKDIR /app
 
-# Copiar archivos compilados desde builder
-COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
+# Copiar archivos compilados desde builder (usuario node ya existe en la imagen)
+COPY --from=builder --chown=node:node /app/dist ./dist
 
-USER appuser
+USER node
 
 EXPOSE 3000
 
