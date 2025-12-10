@@ -1,0 +1,28 @@
+services:
+  frontend_app:
+    image: ${DOCKER_IMAGE:-}
+    container_name: ${PROJECT_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+        - VITE_ALLOWED_HOST_APP=${VITE_ALLOWED_HOST_APP:-}
+        - VITE_ALLOWED_HOST_CORE=${VITE_ALLOWED_HOST_CORE:-}
+        - VITE_USE_MOCK_AUTH=${VITE_USE_MOCK_AUTH:-}
+    ports:
+      - "${WEB_PORT}:3000"
+    restart: unless-stopped
+    networks:
+      - frontend_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  frontend_network:
+    driver: bridge
+    name: ${PROJECT_NAME}_network
