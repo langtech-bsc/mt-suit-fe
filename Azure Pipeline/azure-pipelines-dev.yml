@@ -16,7 +16,7 @@ pool:
 variables:
   - group: 'BSC Translation Frontend Desarrollo'
   - name: QUALITY_GATE_ENABLED
-    value: 'false'
+    value: 'true'
   - name: ACR_SERVER
     value: 'macaquecontainerregistry.azurecr.io'
   - name: ACR_USERNAME
