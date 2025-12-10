@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 @theme {
   --color-bsc-blue-dark: #00377b;
@@ -12,4 +13,18 @@
   font-family: var(--font-sans);
   background-color: var(--color-bsc-white);
   color: var(--color-bsc-blue-dark);
+  color-scheme: light;
+}
+
+:root.dark {
+  background-color: #020617;
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background-color: inherit;
+  color: inherit;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }

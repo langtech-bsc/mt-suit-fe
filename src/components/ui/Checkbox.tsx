@@ -1,4 +1,5 @@
-﻿import { forwardRef, InputHTMLAttributes, MutableRefObject, ReactNode, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useRef } from "react";
+import type { InputHTMLAttributes, MutableRefObject, ReactNode } from "react";
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
     label?: string | ReactNode;
@@ -39,7 +40,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                         {...props}
                     />
                     <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-md border bg-white transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-bsc-blue-medium peer-focus-visible:ring-offset-2 ${error ? "border-red-500" : "border-gray-300"} peer-checked:border-bsc-blue-medium peer-checked:bg-bsc-blue-medium`}
+                        className={`flex h-5 w-5 items-center justify-center rounded-md border bg-white transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-bsc-blue-medium peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white dark:bg-slate-900 dark:peer-focus-visible:ring-offset-slate-900 ${error ? "border-red-500" : "border-gray-300 dark:border-slate-600"} peer-checked:border-bsc-blue-medium peer-checked:bg-bsc-blue-medium`}
                         data-indeterminate={indeterminate}
                     >
                         <svg
@@ -55,13 +56,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                     </span>
                 </span>
                 <span className="flex flex-1 flex-col gap-0.5">
-                    {label && <span className="font-medium text-gray-900">{label}</span>}
-                    {description && <span className="text-gray-600">{description}</span>}
+                    {label && <span className="font-medium text-gray-900 dark:text-slate-100">{label}</span>}
+                    {description && <span className="text-gray-600 dark:text-slate-300">{description}</span>}
                     {children}
                     {error ? (
                         <span className="text-xs text-red-600">{error}</span>
                     ) : (
-                        helperText && <span className="text-xs text-gray-500">{helperText}</span>
+                        helperText && <span className="text-xs text-gray-500 dark:text-slate-400">{helperText}</span>
                     )}
                 </span>
             </label>

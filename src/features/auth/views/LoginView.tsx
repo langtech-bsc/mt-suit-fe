@@ -108,8 +108,8 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
           </ul>
         </section>
 
-        <section className="flex flex-1 items-center justify-center bg-white px-8 py-12">
-          <Card padding="lg" className="w-full max-w-md shadow-2xl shadow-blue-100 md:p-10">
+        <section className="flex flex-1 items-center justify-center bg-white dark:bg-slate-900 px-8 py-12">
+          <Card padding="lg" className="w-full max-w-md shadow-2xl  md:p-10">
             <header className="mb-8 space-y-3">
               <BrandLogo showText={false} imgClassName="h-12" className="justify-start" />
               <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium">Inicio de sesión</p>

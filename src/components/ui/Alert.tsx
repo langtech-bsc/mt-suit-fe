@@ -1,4 +1,4 @@
-﻿import { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 export type AlertVariant = "info" | "success" | "warning" | "danger" | "neutral";
 
@@ -55,11 +55,11 @@ export function Alert({
     ...props
 }: AlertProps) {
     const variantStyles: Record<AlertVariant, string> = {
-        info: "border-blue-200 bg-blue-50 text-bsc-blue-medium",
-        success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-        warning: "border-amber-200 bg-amber-50 text-amber-800",
-        danger: "border-red-200 bg-red-50 text-red-700",
-        neutral: "border-gray-200 bg-gray-50 text-gray-700",
+        info: "border-blue-200 bg-blue-50 text-bsc-blue-medium dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
+        success: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/60 dark:bg-emerald-500/10 dark:text-emerald-100",
+        warning: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/60 dark:bg-amber-500/10 dark:text-amber-100",
+        danger: "border-red-200 bg-red-50 text-red-700 dark:border-red-500/60 dark:bg-red-500/15 dark:text-red-100",
+        neutral: "border-gray-200 bg-gray-50 text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
     };
 
     return (

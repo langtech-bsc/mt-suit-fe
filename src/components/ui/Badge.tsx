@@ -1,4 +1,4 @@
-﻿import { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 export type BadgeVariant = "default" | "success" | "warning" | "danger" | "info" | "outline";
 export type BadgeSize = "sm" | "md";
