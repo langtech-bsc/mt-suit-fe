@@ -43,7 +43,4 @@ export const AuthStorage = {
     removeFrom(globalThis.localStorage)
     removeFrom(globalThis.sessionStorage)
   },
-  getToken() {
-    return this.getSession()?.token ?? null
-  },
 }

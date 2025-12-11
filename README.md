@@ -38,17 +38,13 @@ Copiar `.env.example` → `.env` y ajustar:
 
 | Variable | Descripción |
 | --- | --- |
-| `VITE_API_BASE_URL` | URL del backend cuando esté disponible. |
-| `VITE_USE_MOCK_AUTH` | `true` usa mocks locales, `false` delega en `POST /auth/login`. |
-
-> Con `VITE_USE_MOCK_AUTH=true` se exponen usuarios de prueba:
-> - `translator@bsc.es / Bsc12345!`
-> - `admin@bsc.es / AdminSecure1!`
+| `VITE_API_BASE_URL` | URL base del backend (incluye `/v1` si tu API versiona ahí). |
+| `VITE_AUTH_SESSION_TTL_MINUTES` | Tiempo (min) que mantendremos el token en storage mientras llegan las cookies HttpOnly. |
 
 ## 🔐 Flujo de autenticación
 
 1. **Login** (`/login`): formulario con email + password, validado en frontend (Zod + React Hook Form).
-2. **Servicio** (`src/features/auth/services/auth.service.ts`): hoy retorna mocks, mañana intercambia la llamada por `apiClient.post('/auth/login')`.
+2. **Servicio** (`src/features/auth/services/auth.service.ts`): invoca `POST /v1/auth/login` y transforma `access_token` + `token_type` en la sesión del cliente.
 3. **Store** (`src/features/auth/store/auth.store.ts`): persiste sesión segura (localStorage o sessionStorage según “Recordar sesión”), expone `login`, `logout`, `restoreSession` e `isSessionValid`.
 4. **Protección de rutas**:
    - `/translator` usa `beforeLoad` para redirigir a `/login` si la sesión no existe o venció.
@@ -77,15 +73,15 @@ src/
 
 ## ✅ Flujo funcional actual
 
-1. Ir a `/login`, ingresar credenciales mock (ver tabla).
+1. Ir a `/login`, ingresar credenciales reales del backend.
 2. Activar o desactivar “Recordar sesión”; condiciona si se usa `localStorage` o `sessionStorage`.
 3. Tras el login se redirige al `/translator`, mostrando el dashboard y el botón “Cerrar sesión”.
 4. Al cerrar sesión o expirar el token, se limpia el storage y se navega de vuelta al login con el mensaje correspondiente.
 
 ## 🧪 Próximos pasos sugeridos
 
-1. Reemplazar mocks del `authService` por llamadas reales.
-2. Implementar refresco de token contra `/auth/refresh`.
+1. Implementar refresco de token/cookies cuando el backend exponga `Set-Cookie` HttpOnly.
+2. Añadir flujo de logout server-side definitivo y revocación de tokens.
 3. Conectar las acciones del traductor a los endpoints reales cuando estén listos.
 
 ---

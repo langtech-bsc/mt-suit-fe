@@ -18,10 +18,11 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const token = AuthStorage.getToken();
+    const session = AuthStorage.getSession();
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (session?.token) {
+      const scheme = session.tokenType || 'Bearer';
+      config.headers.Authorization = `${scheme} ${session.token}`;
     }
     return config;
   },
@@ -61,7 +62,7 @@ apiClient.interceptors.response.use(
           break;
       }
     }
-    return Promise.reject(new Error(error))
+    return Promise.reject(new Error(error));
   }
 );
 

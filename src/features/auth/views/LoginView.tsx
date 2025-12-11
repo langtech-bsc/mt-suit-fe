@@ -8,9 +8,7 @@ import { useAuthStore } from '../store/auth.store'
 import type { AppRoutePath } from '../../../routes/types'
 
 const loginSchema = z.object({
-  email: z
-    .email({ message: 'Ingresa un email válido.' })
-    .min(1, 'El email es obligatorio.'),
+  username: z.string().min(3, 'El usuario es obligatorio.'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
   rememberMe: z.boolean().optional(),
 })
@@ -37,7 +35,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
   } = useForm<LoginFormValues>({
     mode: 'onBlur',
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       rememberMe: true,
     },
@@ -127,13 +125,13 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
               )}
 
               <Input
-                label="Correo electrónico"
-                type="email"
-                placeholder="usuario@bsc.es"
-                autoComplete="email"
+                label="Usuario"
+                type="text"
+                placeholder="usuario.corporativo"
+                autoComplete="username"
                 disabled={isLoading}
-                {...register('email')}
-                error={errors.email?.message}
+                {...register('username')}
+                error={errors.username?.message}
               />
 
               <Input
