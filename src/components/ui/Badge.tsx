@@ -16,7 +16,7 @@ export function Badge({
     className = "",
     children,
     ...props
-}: BadgeProps) {
+}: Readonly<BadgeProps>) {
     const variantStyles: Record<BadgeVariant, string> = {
         default: "bg-bsc-blue-medium/10 text-bsc-blue-medium",
         success: "bg-emerald-50 text-emerald-700",

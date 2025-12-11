@@ -53,7 +53,7 @@ export function Alert({
     className = "",
     children,
     ...props
-}: AlertProps) {
+}: Readonly<AlertProps>) {
     const variantStyles: Record<AlertVariant, string> = {
         info: "border-blue-200 bg-blue-50 text-bsc-blue-medium dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
         success: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/60 dark:bg-emerald-500/10 dark:text-emerald-100",

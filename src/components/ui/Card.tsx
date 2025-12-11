@@ -11,7 +11,7 @@ export function Card({
     className = "",
     children,
     ...props
-}: CardProps) {
+}: Readonly<CardProps>) {
     const variantStyles = {
         default: "bg-white border border-gray-200 dark:bg-slate-900 dark:border-slate-800",
         outlined: "bg-transparent border-2 border-gray-300 dark:border-slate-700",
