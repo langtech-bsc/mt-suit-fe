@@ -9,17 +9,18 @@ export interface AuthUser {
 }
 
 export interface AuthCredentials {
-  email: string
+  username: string
   password: string
   rememberMe?: boolean
 }
 
 export interface AuthResponse {
   token: string
+  tokenType: string
   refreshToken: string | null
   expiresAt: string
   issuedAt: string
-  user: AuthUser
+  user: AuthUser | null
 }
 
 export interface AuthSession extends AuthResponse {
