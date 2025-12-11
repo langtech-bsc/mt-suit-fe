@@ -14,7 +14,7 @@ const RootLayout = () => {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const status = useAuthStore((state) => state.status)
-  const { theme, toggleTheme } = useTheme()
+  const { themeState, toggleTheme } = useTheme()
 
   const handleLogout = async () => {
     await logout()
@@ -50,12 +50,12 @@ const RootLayout = () => {
             <Button
               size="sm"
               variant="ghost"
-              aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              aria-label={themeState === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               onClick={toggleTheme}
               className="gap-2"
             >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-              <span className="hidden sm:inline">{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+              {themeState === 'dark' ? <SunIcon /> : <MoonIcon />}
+              <span className="hidden sm:inline">{themeState === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
             </Button>
             {user ? (
               <>

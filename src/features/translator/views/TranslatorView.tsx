@@ -194,7 +194,7 @@ export const TranslatorView = () => {
       return
     }
 
-    const paragraphs = text.split('\n').map((line) => new Paragraph(line || ' '))
+    const paragraphs = text.split('\n').map((line) => new Paragraph(line ?? ' '))
     const document = new Document({
       sections: [
         {
@@ -392,8 +392,7 @@ export const TranslatorView = () => {
               {isProcessing && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
                   <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium">
-                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />
-                    Procesando solicitud…
+                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud…
                   </div>
                 </div>
               )}

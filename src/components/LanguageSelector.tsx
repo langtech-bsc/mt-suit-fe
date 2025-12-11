@@ -8,7 +8,7 @@ interface LanguageSelectorProps {
     excludeCode?: string;
 }
 
-export function LanguageSelector({ label, selectedCode, onChange, excludeCode }: LanguageSelectorProps) {
+export function LanguageSelector({ label, selectedCode, onChange, excludeCode }: Readonly<LanguageSelectorProps>) {
     const options = SUPPORTED_LANGUAGES.map((lang) => ({
         value: lang.code,
         label: lang.name,

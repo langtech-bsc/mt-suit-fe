@@ -1,14 +1,15 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 type Theme = 'light' | 'dark'
 
 interface ThemeContextValue {
-  theme: Theme
-  setTheme: (theme: Theme) => void
+  themeState: Theme
+  setTheme: (themeState: Theme) => void
   toggleTheme: () => void
 }
 
-const STORAGE_KEY = 'bsc-theme'
+const STORAGE_KEY = 'bsc-themeState'
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 
@@ -27,23 +28,23 @@ const getPreferredTheme = (): Theme => {
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setThemeState] = useState<Theme>(() => getPreferredTheme())
+  const [themeState, setThemeState] = useState<Theme>(() => getPreferredTheme())
 
   useEffect(() => {
     if (typeof document === 'undefined') return
 
     const root = document.documentElement
-    root.classList.toggle('dark', theme === 'dark')
-    root.dataset.theme = theme
-    window.localStorage.setItem(STORAGE_KEY, theme)
-  }, [theme])
+    root.classList.toggle('dark', themeState === 'dark')
+    root.dataset.themeState = themeState
+    window.localStorage.setItem(STORAGE_KEY, themeState)
+  }, [themeState])
 
   const setTheme = (next: Theme) => setThemeState(next)
   const toggleTheme = () => {
     setThemeState((previous) => (previous === 'dark' ? 'light' : 'dark'))
   }
 
-  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme])
+  const value = useMemo(() => ({ themeState, setTheme, toggleTheme }), [themeState])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
