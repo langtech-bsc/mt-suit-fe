@@ -50,7 +50,7 @@ stages:
               extraProperties: |
                 sonar.sources=src
                 sonar.inclusions=src/**/*
-                sonar.exclusions=node_modules/**,dist/**,build/**,coverage/**,**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx
+                sonar.exclusions=node_modules/**,dist/**,build/**,coverage/**,**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,src/index.css
                 sonar.typescript.lcov.reportPaths=coverage/lcov.info
                 sonar.javascript.lcov.reportPaths=coverage/lcov.info
                 sonar.sourceEncoding=UTF-8
