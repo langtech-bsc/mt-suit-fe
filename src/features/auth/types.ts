@@ -1,10 +1,15 @@
-export type AuthRole = 'translator' | 'reviewer' | 'admin'
+export type AuthRole = 'translator' | 'reviewer' | 'admin' | (string & {})
 
 export interface AuthUser {
   id: string
+  username: string
   email: string
-  fullName: string
+  fullName?: string
   roles: AuthRole[]
+  isActive: boolean
+  isSuperuser: boolean
+  createdAt?: string
+  updatedAt?: string
   lastLoginAt?: string
 }
 
