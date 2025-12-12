@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       if (!current || current.token !== stored.token) {
         set({ session: stored, user: stored.user, status: 'authenticated', error: null })
         if (!stored.user) {
-          void get().fetchProfile()
+          get().fetchProfile()
         }
       }
       return

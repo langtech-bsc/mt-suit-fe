@@ -49,7 +49,7 @@ export const AdminUsersView = () => {
 
 
   const handleRefreshUsers = () => {
-    void refetchUsers()
+    refetchUsers()
   }
 
   return (
