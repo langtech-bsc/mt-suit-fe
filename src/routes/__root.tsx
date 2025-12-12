@@ -44,6 +44,14 @@ const RootLayout = () => {
               <Link to="/ui" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Catálogo UI
               </Link>
+              {user?.isSuperuser && (
+                <Link
+                  to="/admin/users"
+                  className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
+                >
+                  Usuarios
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-3">

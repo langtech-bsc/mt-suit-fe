@@ -6,11 +6,23 @@ interface LoginApiResponse {
   token_type: string
 }
 
+interface CurrentUserApiResponse {
+  username: string
+  email: string
+  id: number
+  is_active: boolean
+  is_superuser: boolean
+  created_at: string
+  updated_at: string
+  roles?: string[]
+}
+
 const AUTH_BASE_PATH = '/auth'
+const USERS_BASE_PATH = '/users'
 
 const resolveSessionDuration = () => {
   const fallback = 60
-  const raw = Number(fallback)
+  const raw = Number(import.meta.env.VITE_AUTH_SESSION_TTL_MINUTES ?? fallback)
   if (Number.isFinite(raw) && raw > 0) {
     return raw
   }
@@ -24,18 +36,7 @@ const computeExpiration = () => {
   return expiresAt.toISOString()
 }
 
-const buildUserFrom = (username: string, issuedAt: string): AuthUser => {
-  const normalized = username.trim()
-  return {
-    id: normalized,
-    email: normalized,
-    fullName: normalized,
-    roles: [],
-    lastLoginAt: issuedAt,
-  }
-}
-
-const mapLoginResponse = (payload: AuthCredentials, response: LoginApiResponse): AuthResponse => {
+const mapLoginResponse = (response: LoginApiResponse): AuthResponse => {
   const issuedAt = new Date().toISOString()
 
   return {
@@ -44,9 +45,22 @@ const mapLoginResponse = (payload: AuthCredentials, response: LoginApiResponse):
     refreshToken: null,
     issuedAt,
     expiresAt: computeExpiration(),
-    user: buildUserFrom(payload.username, issuedAt),
+    user: null,
   }
 }
+
+const mapCurrentUserResponse = (payload: CurrentUserApiResponse): AuthUser => ({
+  id: String(payload.id),
+  username: payload.username,
+  email: payload.email,
+  fullName: payload.username,
+  roles: (payload.roles ?? []) as AuthUser['roles'],
+  isActive: payload.is_active,
+  isSuperuser: payload.is_superuser,
+  createdAt: payload.created_at,
+  updatedAt: payload.updated_at,
+  lastLoginAt: payload.updated_at ?? payload.created_at,
+})
 
 class AuthService {
   async login(payload: AuthCredentials): Promise<AuthResponse> {
@@ -56,7 +70,12 @@ class AuthService {
     }
 
     const { data } = await apiClient.post<LoginApiResponse>(`${AUTH_BASE_PATH}/login`, credentials)
-    return mapLoginResponse(payload, data)
+    return mapLoginResponse(data)
+  }
+
+  async getCurrentUser(): Promise<AuthUser> {
+    const { data } = await apiClient.get<CurrentUserApiResponse>(`${USERS_BASE_PATH}/me`)
+    return mapCurrentUserResponse(data)
   }
 
   async logout(): Promise<void> {

@@ -1,1 +1,1 @@
-export type AppRoutePath = '/' | '/about' | '/translator' | '/ui'
+export type AppRoutePath = '/' | '/about' | '/translator' | '/ui' | '/admin/users'

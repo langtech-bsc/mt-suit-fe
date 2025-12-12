@@ -10,6 +10,7 @@ interface AuthStoreState {
   error: string | null
   login: (payload: AuthCredentials) => Promise<void>
   logout: () => Promise<void>
+  fetchProfile: () => Promise<AuthUser | null>
   restoreSession: () => void
   isSessionValid: () => boolean
   setSession: (session: AuthSession | null) => void
@@ -41,17 +42,32 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ status: 'authenticating', error: null })
     try {
       const response = await authService.login(payload)
-      const session: AuthSession = {
+      let session: AuthSession = {
         ...response,
         rememberMe: Boolean(payload.rememberMe),
       }
       AuthStorage.persistSession(session)
-      set({ status: 'authenticated', session, user: session.user, error: null })
+      const user = await authService.getCurrentUser()
+      session = { ...session, user }
+      AuthStorage.persistSession(session)
+      set({ status: 'authenticated', session, user, error: null })
     } catch (error) {
+      AuthStorage.clearSession()
       const message = error instanceof Error ? error.message : 'No pudimos iniciar sesión.'
-      set({ status: 'error', error: message })
+      set({ status: 'error', error: message, session: null, user: null })
       throw error
     }
+  },
+  async fetchProfile() {
+    const session = get().session
+    if (!session) {
+      return null
+    }
+    const user = await authService.getCurrentUser()
+    const updatedSession: AuthSession = { ...session, user }
+    AuthStorage.persistSession(updatedSession)
+    set({ session: updatedSession, user, status: 'authenticated' })
+    return user
   },
   async logout() {
     try {
@@ -68,6 +84,9 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     if (stored) {
       if (!current || current.token !== stored.token) {
         set({ session: stored, user: stored.user, status: 'authenticated', error: null })
+        if (!stored.user) {
+          void get().fetchProfile()
+        }
       }
       return
     }

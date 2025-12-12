@@ -43,9 +43,9 @@ Copiar `.env.example` → `.env` y ajustar:
 
 ## 🔐 Flujo de autenticación
 
-1. **Login** (`/login`): formulario con email + password, validado en frontend (Zod + React Hook Form).
-2. **Servicio** (`src/features/auth/services/auth.service.ts`): invoca `POST /v1/auth/login` y transforma `access_token` + `token_type` en la sesión del cliente.
-3. **Store** (`src/features/auth/store/auth.store.ts`): persiste sesión segura (localStorage o sessionStorage según “Recordar sesión”), expone `login`, `logout`, `restoreSession` e `isSessionValid`.
+1. **Login** (`/login`): formulario con usuario + password, validado en frontend (Zod + React Hook Form).
+2. **Servicio** (`src/features/auth/services/auth.service.ts`): invoca `POST /v1/auth/login` y luego `GET /v1/users/me` para poblar el perfil y los roles.
+3. **Store** (`src/features/auth/store/auth.store.ts`): persiste sesión segura (localStorage o sessionStorage según “Recordar sesión”), expone `login`, `logout`, `fetchProfile`, `restoreSession` e `isSessionValid`.
 4. **Protección de rutas**:
    - `/translator` usa `beforeLoad` para redirigir a `/login` si la sesión no existe o venció.
    - `/login` detecta sesiones activas y redirige automáticamente al traductor.
@@ -71,17 +71,23 @@ src/
 └─ routeTree.gen.ts
 ```
 
+## 👤 Panel de administración
+
+- Ruta protegida `/admin/users` (solo `is_superuser`): muestra el perfil del super admin, estados de roles y placeholders para el CRUD de usuarios.
+- Componentes reutilizados: `Card`, `Alert`, `Badge`, `Button`, `PageLoader` para mantener consistencia visual.
+- Cuando el backend exponga `GET /v1/users` y endpoints de roles, solo habrá que conectar la tabla y las acciones dentro de esta vista ya maquetada.
+
 ## ✅ Flujo funcional actual
 
 1. Ir a `/login`, ingresar credenciales reales del backend.
 2. Activar o desactivar “Recordar sesión”; condiciona si se usa `localStorage` o `sessionStorage`.
-3. Tras el login se redirige al `/translator`, mostrando el dashboard y el botón “Cerrar sesión”.
+3. Tras el login se redirige al `/translator`. Si el usuario es super admin se expone además `/admin/users` para la futura consola de permisos.
 4. Al cerrar sesión o expirar el token, se limpia el storage y se navega de vuelta al login con el mensaje correspondiente.
 
 ## 🧪 Próximos pasos sugeridos
 
 1. Implementar refresco de token/cookies cuando el backend exponga `Set-Cookie` HttpOnly.
-2. Añadir flujo de logout server-side definitivo y revocación de tokens.
+2. Exponer CRUD real de usuarios/roles en `/admin/users`.
 3. Conectar las acciones del traductor a los endpoints reales cuando estén listos.
 
 ---

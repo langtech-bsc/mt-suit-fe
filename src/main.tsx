@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import { ThemeProvider } from './features/theme/ThemeProvider'
 
@@ -9,6 +10,14 @@ import { routeTree } from './routeTree.gen'
 
 // Create a new router instance
 export const router = createRouter({ routeTree })
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {
@@ -23,9 +32,11 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
-      <ThemeProvider>
-        <RouterProvider router={router} />
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </QueryClientProvider>
     </StrictMode>,
   )
 }
