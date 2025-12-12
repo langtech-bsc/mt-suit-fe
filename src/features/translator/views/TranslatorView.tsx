@@ -30,7 +30,7 @@ const MODE_CONFIG: Record<TranslatorMode, { label: string; description: string; 
   'post-editing': {
     label: 'Post-Editing',
     description: 'Refina la traducción pegada en el panel derecho para mejorar estilo y fluidez.',
-    actionLabel: 'Mejorar traducción (Post-Editing)',
+    actionLabel: 'Mejorar traducción',
   },
 }
 
@@ -314,6 +314,38 @@ export const TranslatorView = () => {
                 {inputCharacters.toLocaleString('es-ES')} / {MAX_CHARACTERS.toLocaleString('es-ES')}
               </div>
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={triggerFileDialog}
+                  disabled={isProcessing || mode === 'post-editing'}
+                >
+                  Subir archivo
+                </Button>
+                {uploadedFileName && (
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
+                    Cargado: <span className="font-medium">{uploadedFileName}</span>
+                  </span>
+                )}
+                <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={isProcessing}>
+                  Limpiar texto
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleProcess}
+                  disabled={!canProcess || isProcessing}
+                >
+                  {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
+                </Button>
+              </div>
+            </div>
             <Textarea
               placeholder="Escribe, pega o importa tu texto aquí…"
               rows={14}
@@ -323,19 +355,6 @@ export const TranslatorView = () => {
               helperText={!charError ? 'Este texto alimenta los modos Translate y Grammar Checker.' : undefined}
               error={charError ?? undefined}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="button" variant="secondary" size="sm" onClick={triggerFileDialog} disabled={isProcessing}>
-                Subir archivo
-              </Button>
-              {uploadedFileName && (
-                <span className="text-sm text-slate-600 dark:text-slate-300">
-                  Cargado: <span className="font-medium">{uploadedFileName}</span>
-                </span>
-              )}
-              <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={isProcessing}>
-                Limpiar texto
-              </Button>
-            </div>
             {fileError && <p className="text-xs text-red-500">{fileError}</p>}
             <input
               ref={fileInputRef}
@@ -350,17 +369,14 @@ export const TranslatorView = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Resultado</h3>
-                {mode === 'post-editing' ? (
-                  <p className="text-xs text-slate-500">Pega aquí la traducción a mejorar, el resultado reemplazará este contenido.</p>
-                ) : (
-                  <p className="text-xs text-slate-500">Mostramos la salida del flujo activo. Se limpia al cambiar de modo.</p>
-                )}
+               
               </div>
+            </div>
               <div className="flex items-center gap-3">
                 <Select
                   value={exportFormat}
                   onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
-                  className="min-w-[140px] bg-white dark:bg-slate-800"
+                  className="min-w-[140px] bg-white dark:bg-slate-800 h-8 text-sm !py-1"
                 >
                   {EXPORT_FORMATS.map((format) => (
                     <option key={format.value} value={format.value}>
@@ -372,7 +388,6 @@ export const TranslatorView = () => {
                   Exportar
                 </Button>
               </div>
-            </div>
 
             <div className="relative">
               <Textarea
@@ -407,14 +422,6 @@ export const TranslatorView = () => {
         </section>
 
         <Card padding="lg" className="flex flex-col gap-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="primary" size="md" onClick={handleProcess} disabled={!canProcess || isProcessing}>
-              {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
-            </Button>
-            <Button type="button" variant="ghost" size="md" onClick={() => setStatus(null)} disabled={isProcessing}>
-              Ocultar estado
-            </Button>
-          </div>
           <Alert
             variant="neutral"
             title="Consejos rápidos"

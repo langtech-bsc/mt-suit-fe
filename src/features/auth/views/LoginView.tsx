@@ -99,7 +99,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
             </p>
           </div>
           <ul className="space-y-3 text-sm text-blue-100/90">
-            <li className="flex items-start gap-2">
+            <li className="flex items-center gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" /> {" "}
               Experiencia consistente para traducción, grammar checker y post-editing.
             </li>
@@ -110,7 +110,6 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
           <Card padding="lg" className="w-full max-w-md shadow-2xl  md:p-10">
             <header className="mb-8 space-y-3">
               <BrandLogo showText={false} imgClassName="h-12" className="justify-start" />
-              <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Inicio de sesión</p>
               <h2 className="mt-2 text-2xl font-bold text-bsc-blue-dark">Bienvenido de nuevo</h2>
               <p className="text-sm text-gray-500">Usa tus credenciales corporativas para continuar.</p>
             </header>
@@ -147,7 +146,6 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
               <div className="flex items-center justify-between">
                 <Checkbox
                   label="Recordar sesión"
-                  description="Mantente autenticado en este dispositivo."
                   disabled={isLoading}
                   {...register('rememberMe')}
                 />

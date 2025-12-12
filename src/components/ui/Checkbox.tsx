@@ -40,7 +40,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                         {...props}
                     />
                     <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-md border bg-white transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-bsc-blue-medium peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white dark:bg-slate-900 dark:peer-focus-visible:ring-offset-slate-900 ${error ? "border-red-500" : "border-gray-300 dark:border-slate-600"} peer-checked:border-bsc-blue-medium peer-checked:bg-bsc-blue-medium`}
+                        className={`flex h-5 w-5 items-center justify-center rounded-md border bg-white transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-bsc-blue-medium peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white dark:bg-slate-900 dark:peer-focus-visible:ring-offset-slate-900 ${error ? "border-red-500" : "border-gray-300 dark:border-slate-600"} peer-checked:border-bsc-blue-medium peer-checked:bg-bsc-blue-medium dark:peer-checked:bg-bsc-blue-medium-dark`}
                         data-indeterminate={indeterminate}
                     >
                         <svg
