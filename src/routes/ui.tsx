@@ -38,7 +38,7 @@ function UIShowcase() {
     return (
         <div className="space-y-8 bg-gradient-to-b from-white to-blue-50/40 p-6">
             <header>
-                <p className="text-sm uppercase tracking-wide text-bsc-blue-medium">Kit UI del BSC</p>
+                <p className="text-sm uppercase tracking-wide text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Kit UI del BSC</p>
                 <h1 className="text-3xl font-bold text-bsc-blue-dark">Galería de componentes</h1>
                 <p className="text-gray-600 mt-2 max-w-2xl">
                     Revisa los componentes primitivos disponibles, copia los ejemplos y úsalos en cualquier pantalla.

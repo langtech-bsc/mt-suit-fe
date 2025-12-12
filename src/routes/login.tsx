@@ -15,7 +15,7 @@ const searchSchema = z.object({
   reason: z.string().optional(),
 })
 
-const allowedRoutes: AppRoutePath[] = ['/', '/about', '/translator', '/ui', '/admin/users'] // NOSONAR
+const allowedRoutes: AppRoutePath[] = ['/', '/about', '/translator', '/ui', '/admin/users', '/admin/languages'] // NOSONAR
 
 const sanitizeRedirect = (value?: string | null): AppRoutePath => {
   if (!value) {

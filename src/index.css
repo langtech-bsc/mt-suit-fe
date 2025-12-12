@@ -4,6 +4,7 @@
 @theme {
   --color-bsc-blue-dark: #00377b;
   --color-bsc-blue-medium: #0052a2;
+  --color-bsc-blue-medium-dark: #93c5fd;
   --color-bsc-white: #ffffff;
   
   --font-sans: "Inter", system-ui, sans-serif;
@@ -17,6 +18,7 @@
 }
 
 :root.dark {
+  --color-bsc-blue-dark: #f8fafc;
   background-color: #020617;
   color: #f8fafc;
   color-scheme: dark;

@@ -1,10 +1,11 @@
 import type { HTMLAttributes } from 'react'
+import { useTheme } from '../features/theme/ThemeProvider'
 
 type BrandLogoProps = HTMLAttributes<HTMLDivElement> & {
   label?: string
   tagline?: string
   direction?: 'horizontal' | 'vertical'
-  textTone?: 'dark' | 'light'
+  textTone?: 'dark' | 'light' | 'auto'
   imgClassName?: string
   showText?: boolean
 }
@@ -14,17 +15,20 @@ const baseImgClasses = 'h-10 w-auto'
 
 export const BrandLogo = ({
   direction = 'horizontal',
-  textTone = 'dark',
+  textTone = 'auto',
   imgClassName = '',
   className = '',
   ...props
 }: BrandLogoProps) => {
+  const { themeState } = useTheme()
+  const resolvedTone = textTone === 'auto' ? (themeState === 'dark' ? 'light' : 'dark') : textTone
+
   return (
     <div
       className={`flex items-center gap-3 ${direction === 'vertical' ? 'flex-col text-center' : 'flex-row'} ${className}`}
       {...props}
     >
-      {textTone === 'dark' ? <img
+      {resolvedTone === 'dark' ? <img
         src="/BSC-blue.svg"
         alt="Barcelona Supercomputing Center logo"
         className={`${baseImgClasses} ${imgClassName}`}

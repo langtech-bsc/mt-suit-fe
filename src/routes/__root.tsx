@@ -6,6 +6,7 @@ import { BrandLogo } from '../components/BrandLogo'
 import { useAuthStore } from '../features/auth/store/auth.store'
 import { SessionManager } from '../features/auth/components/SessionManager'
 import { useTheme } from '../features/theme/ThemeProvider'
+import { isAdminUser, isSuperAdminUser } from '../features/auth/utils/authz'
 
 const RootLayout = () => {
   const { location } = useRouterState()
@@ -15,6 +16,8 @@ const RootLayout = () => {
   const logout = useAuthStore((state) => state.logout)
   const status = useAuthStore((state) => state.status)
   const { themeState, toggleTheme } = useTheme()
+  const canSeeLanguagesAdmin = isAdminUser(user)
+  const canSeeUsersAdmin = isSuperAdminUser(user)
 
   const handleLogout = async () => {
     await logout()
@@ -38,13 +41,21 @@ const RootLayout = () => {
               <Link to="/translator" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Traductor
               </Link>
-              <Link to="/about" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
+              {/* <Link to="/about" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Acerca de
-              </Link>
-              <Link to="/ui" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
+              </Link> */}
+              {/* <Link to="/ui" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Catálogo UI
-              </Link>
-              {user?.isSuperuser && (
+              </Link> */}
+              {canSeeLanguagesAdmin && (
+                <Link
+                  to="/admin/languages"
+                  className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
+                >
+                  Idiomas
+                </Link>
+              )}
+              {canSeeUsersAdmin && (
                 <Link
                   to="/admin/users"
                   className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
@@ -66,12 +77,9 @@ const RootLayout = () => {
               <span className="hidden sm:inline">{themeState === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
             </Button>
             {user ? (
-              <>
-                <span className="text-xs text-gray-600 dark:text-slate-300">{user.email}</span>
                 <Button size="sm" variant="outline" onClick={handleLogout}>
                   Cerrar sesión
                 </Button>
-              </>
             ) : (
               <Button
                 size="sm"
