@@ -61,9 +61,8 @@ export function Modal({
                 onClick={onClose}
             />
             <div
-                role="dialog"
                 aria-modal="true"
-                className={`relative w-full ${sizeClasses[size]} rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950`}
+                className={`relative w-full ${sizeClasses[size]} rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 max-h-[95vh] overflow-y-auto`}
             >
                 {(title || description) && (
                     <div className="border-b border-gray-100 px-6 py-5 dark:border-slate-800">

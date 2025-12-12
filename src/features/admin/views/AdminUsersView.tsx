@@ -226,6 +226,9 @@ export const AdminUsersView = () => {
   }
 
   const handleToggleActive = (record: AdminUserRecord, nextActive: boolean) => {
+    if (record.id === Number(user?.id)) {
+      return
+    }
     setActionError(null)
     updateUserMutation.mutate({
       userId: record.id,
@@ -312,25 +315,26 @@ export const AdminUsersView = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {filteredUsers.map((record) => {
-                    const isUpdatingThis = updateUserMutation.isPending && updateUserMutation.variables?.userId === record.id
-                    return (
-                      <tr
-                        key={record.id}
-                        className="bg-white transition hover:bg-blue-50/40 dark:bg-slate-900 dark:hover:bg-slate-800"
-                      >
+                {filteredUsers.map((record) => {
+                  const isUpdatingThis = updateUserMutation.isPending && updateUserMutation.variables?.userId === record.id
+                  const isSelf = record.id === Number(user.id)
+                  return (
+                    <tr
+                      key={record.id}
+                      className="bg-white transition hover:bg-blue-50/40 dark:bg-slate-900 dark:hover:bg-slate-800"
+                    >
                         <td className="px-4 py-3">
                           <p className="font-semibold text-bsc-blue-dark dark:text-slate-100">{record.username}</p>
                           <p className="text-xs text-gray-500 dark:text-slate-400">{record.email}</p>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap items-center gap-3">
-                            <Switch
-                              checked={record.isActive}
-                              onChange={(event) => handleToggleActive(record, event.target.checked)}
-                              disabled={isUpdatingThis}
-                              aria-label="Activar o desactivar usuario"
-                            />
+                          <Switch
+                            checked={record.isActive}
+                            onChange={(event) => handleToggleActive(record, event.target.checked)}
+                            disabled={isUpdatingThis || isSelf}
+                            aria-label="Activar o desactivar usuario"
+                          />
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
                               {record.isActive ? 'Activo' : 'Inactivo'}
                             </Badge>
