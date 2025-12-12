@@ -1,4 +1,4 @@
-export type AuthRole = 'translator' | 'reviewer' | 'admin' | (string & {})
+export type AuthRole = 'translator' | 'reviewer' | 'admin' 
 
 export interface AuthUser {
   id: string
