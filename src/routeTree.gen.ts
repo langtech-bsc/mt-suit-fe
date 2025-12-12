@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminLanguagesRouteImport } from './routes/admin.languages'
 
 const UiRoute = UiRouteImport.update({
   id: '/ui',
@@ -46,6 +47,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLanguagesRoute = AdminLanguagesRouteImport.update({
+  id: '/admin/languages',
+  path: '/admin/languages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
+  '/admin/languages': typeof AdminLanguagesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
+  '/admin/languages': typeof AdminLanguagesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesById {
@@ -70,13 +78,28 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
+  '/admin/languages': typeof AdminLanguagesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/login' | '/translator' | '/ui' | '/admin/users'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/login'
+    | '/translator'
+    | '/ui'
+    | '/admin/languages'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/login' | '/translator' | '/ui' | '/admin/users'
+  to:
+    | '/'
+    | '/about'
+    | '/login'
+    | '/translator'
+    | '/ui'
+    | '/admin/languages'
+    | '/admin/users'
   id:
     | '__root__'
     | '/'
@@ -84,6 +107,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/translator'
     | '/ui'
+    | '/admin/languages'
     | '/admin/users'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +117,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   TranslatorRoute: typeof TranslatorRoute
   UiRoute: typeof UiRoute
+  AdminLanguagesRoute: typeof AdminLanguagesRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
@@ -140,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/languages': {
+      id: '/admin/languages'
+      path: '/admin/languages'
+      fullPath: '/admin/languages'
+      preLoaderRoute: typeof AdminLanguagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -149,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   TranslatorRoute: TranslatorRoute,
   UiRoute: UiRoute,
+  AdminLanguagesRoute: AdminLanguagesRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport

@@ -225,7 +225,7 @@ export const TranslatorView = () => {
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-blue-50/40 to-blue-100/20 px-4 py-8 text-slate-900 dark:bg-gradient-to-b dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50 sm:px-6 lg:px-10">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
         <header className="space-y-3 rounded-3xl bg-white/80 p-6 shadow-sm backdrop-blur dark:bg-slate-900/60">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium">Módulo avanzado</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Módulo avanzado</p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traductor inteligente BSC</h1>
@@ -233,7 +233,7 @@ export const TranslatorView = () => {
                 Traducción estándar, corrección gramatical y postedición integrados en un solo flujo.
               </p>
             </div>
-            <div className="rounded-2xl bg-bsc-blue-medium/10 px-4 py-2 text-sm text-bsc-blue-medium dark:bg-bsc-blue-medium/20">
+            <div className="rounded-2xl bg-bsc-blue-medium/10 px-4 py-2 text-sm text-bsc-blue-medium dark:bg-bsc-blue-medium/20 dark:text-bsc-blue-medium-dark">
               Máximo {MAX_CHARACTERS.toLocaleString('es-ES')} caracteres
             </div>
           </div>
@@ -245,7 +245,7 @@ export const TranslatorView = () => {
 
         <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-1">
-            <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium">Modo de trabajo</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Modo de trabajo</p>
             <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">{activeConfig.label}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{activeConfig.description}</p>
           </div>
@@ -389,7 +389,7 @@ export const TranslatorView = () => {
               />
               {isProcessing && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
-                  <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
                     <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud…
                   </div>
                 </div>

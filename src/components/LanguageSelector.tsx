@@ -1,5 +1,6 @@
-import { SUPPORTED_LANGUAGES } from "../data/languages";
 import { Select } from "./ui";
+import { useLanguagesStore } from "../features/languages/store/languages.store";
+import { useLanguagesQuery } from "../features/languages/queries/useLanguagesQuery";
 
 interface LanguageSelectorProps {
     label: string;
@@ -9,11 +10,16 @@ interface LanguageSelectorProps {
 }
 
 export function LanguageSelector({ label, selectedCode, onChange, excludeCode }: Readonly<LanguageSelectorProps>) {
-    const options = SUPPORTED_LANGUAGES.map((lang) => ({
-        value: lang.code,
-        label: lang.name,
-        disabled: lang.code === excludeCode,
-    }));
+    useLanguagesQuery();
+    const languages = useLanguagesStore((state) => state.languages);
+
+    const options = languages
+        .filter((language) => language.isActive)
+        .map((lang) => ({
+            value: lang.isoCode,
+            label: lang.name,
+            disabled: lang.isoCode === excludeCode,
+        }));
 
     return (
         <Select

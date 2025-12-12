@@ -18,12 +18,12 @@ export function Badge({
     ...props
 }: Readonly<BadgeProps>) {
     const variantStyles: Record<BadgeVariant, string> = {
-        default: "bg-bsc-blue-medium/10 text-bsc-blue-medium",
+        default: "bg-bsc-blue-medium/10 text-bsc-blue-medium dark:text-bsc-blue-medium-dark",
         success: "bg-emerald-50 text-emerald-700",
         warning: "bg-amber-50 text-amber-700",
         danger: "bg-red-50 text-red-700",
-        info: "bg-blue-50 text-bsc-blue-medium",
-        outline: "bg-transparent border border-bsc-blue-medium text-bsc-blue-medium",
+        info: "bg-blue-50 text-bsc-blue-medium dark:text-bsc-blue-medium-dark",
+        outline: "bg-transparent border border-bsc-blue-medium text-bsc-blue-medium dark:text-bsc-blue-medium-dark",
     };
 
     const sizeStyles: Record<BadgeSize, string> = {

@@ -84,7 +84,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-white via-blue-50 to-blue-100">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col md:flex-row">
-        <section className="flex flex-1 flex-col justify-center gap-6 bg-bsc-blue-dark/95 px-10 py-12 text-white">
+        <section className="flex flex-1 flex-col justify-center gap-6 bg-[#00377b] px-10 py-12 text-white">
           <BrandLogo
             textTone="light"
             label="Barcelona Supercomputing Center"
@@ -110,7 +110,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
           <Card padding="lg" className="w-full max-w-md shadow-2xl  md:p-10">
             <header className="mb-8 space-y-3">
               <BrandLogo showText={false} imgClassName="h-12" className="justify-start" />
-              <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium">Inicio de sesión</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Inicio de sesión</p>
               <h2 className="mt-2 text-2xl font-bold text-bsc-blue-dark">Bienvenido de nuevo</h2>
               <p className="text-sm text-gray-500">Usa tus credenciales corporativas para continuar.</p>
             </header>
@@ -151,7 +151,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
                   disabled={isLoading}
                   {...register('rememberMe')}
                 />
-                <button type="button" className="text-sm font-medium text-bsc-blue-medium hover:text-bsc-blue-dark">
+                <button type="button" className="text-sm font-medium text-bsc-blue-medium hover:text-bsc-blue-dark dark:text-bsc-blue-medium-dark dark:hover:text-white">
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>

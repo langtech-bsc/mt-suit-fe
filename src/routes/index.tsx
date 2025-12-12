@@ -9,7 +9,7 @@ export const Route = createFileRoute('/')({
 function Index() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-      <section className="rounded-3xl bg-gradient-to-r from-bsc-blue-dark via-bsc-blue-medium to-sky-500 p-10 text-white shadow-2xl space-y-3">
+      <section className="rounded-3xl bg-gradient-to-r from-[#00377b] via-bsc-blue-medium to-sky-500 p-10 text-white shadow-2xl space-y-3">
         <BrandLogo textTone="light" tagline="Translation Intelligence Platform" className="justify-start" />
         <p className="text-sm uppercase tracking-[0.3em] text-white/70">BSC Translation</p>
         <h1 className="mt-4 text-4xl font-semibold leading-tight">Traductor especializado con governance y control de acceso</h1>
@@ -20,7 +20,7 @@ function Index() {
           <Link
             to="/login"
             search={{ redirect: '/translator' }}
-            className="inline-flex items-center justify-center rounded-lg bg-white/90 px-6 py-3 text-base font-semibold text-bsc-blue-dark shadow-lg transition hover:bg-white"
+            className="inline-flex items-center justify-center rounded-lg text-[#00377b] bg-white px-6 py-3 text-base font-semibold  shadow-lg transition hover:bg-white"
           >
             Ingresar al Traductor
           </Link>
@@ -36,7 +36,7 @@ function Index() {
       <section className="grid gap-4 md:grid-cols-3">
         {features.map((feature) => (
           <Card key={feature.title} padding="lg" className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium">{feature.caption}</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-bsc-blue-medium dark:text-bsc-blue-medium-dark">{feature.caption}</p>
             <h3 className="text-xl font-semibold text-bsc-blue-dark">{feature.title}</h3>
             <p className="text-sm text-gray-600">{feature.description}</p>
           </Card>
