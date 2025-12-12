@@ -3,18 +3,19 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Alert, Button, Input, Modal, Select, Switch } from '../../../components/ui'
 import type { AdminUserRecord } from '../types'
+import { useAuthStore } from '../../auth/store/auth.store'
 
 type Mode = 'create' | 'edit'
 
 const createSchema = z.object({
   username: z.string().min(3, 'El usuario es obligatorio.'),
-  email: z.string().email('Ingresa un email válido.'),
+  email: z.email('Ingresa un email válido.'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
 })
 
 const editSchema = z.object({
   username: z.string().min(3, 'El usuario es obligatorio.'),
-  email: z.string().email('Ingresa un email válido.'),
+  email: z.email('Ingresa un email válido.'),
   password: z.string().optional(),
   isActive: z.boolean(),
   role: z.string().optional(),
@@ -47,7 +48,15 @@ export const UserFormModal = ({
   onEdit,
 }: UserFormModalProps) => {
   const isEdit = mode === 'edit'
+  
+  const currentUserLogged = useAuthStore((state) => state.user)
 
+  const itself = useMemo(() => {
+    if (!isEdit || !user || !currentUserLogged) {
+      return false
+    }
+    return user.id === Number(currentUserLogged.id)
+  }, [isEdit, user, currentUserLogged])
   const defaultEditRole = useMemo(() => {
     if (!user) {
       return 'all'
@@ -108,15 +117,26 @@ export const UserFormModal = ({
       return
     }
     onEdit(user.id, validation.data)
-  })
-
-  const footer = (
+    })
+    
+    let buttonText = 'Crear usuario'
+    if (isSubmitting) {
+      buttonText = 'Guardando…'
+    } else if (isEdit) {
+      buttonText = 'Guardar cambios'
+    }
+    
+    const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancelar
       </Button>
-      <Button variant="primary" onClick={isEdit ? handleSubmitEdit : handleSubmitCreate} disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear usuario'}
+      <Button
+        variant="primary"
+        onClick={isEdit ? handleSubmitEdit : handleSubmitCreate}
+        disabled={isSubmitting}
+      >
+        {buttonText}
       </Button>
     </>
   )
@@ -154,7 +174,7 @@ export const UserFormModal = ({
               label={editForm.watch('isActive') ? 'Cuenta activa' : 'Cuenta inactiva'}
               checked={editForm.watch('isActive')}
               onChange={(event) => editForm.setValue('isActive', event.target.checked)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || itself}
             />
             <div className="w-full sm:w-64">
               <Select

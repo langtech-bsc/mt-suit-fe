@@ -15,7 +15,7 @@ const languageSchema = z.object({
     .regex(/^[a-zA-Z-]+$/, 'Usa solo letras y guiones.'),
   isActive: z.boolean(),
   flagMode: z.enum(['url', 'upload']),
-  flagUrl: z.string().url('Ingresa una URL válida.').optional().or(z.literal('')),
+  flagUrl: z.url('Ingresa una URL válida.').optional().or(z.literal('')),
 })
 
 interface LanguageFormModalProps {
@@ -129,13 +129,23 @@ export const LanguageFormModal = ({
     onSubmit(payload)
   }
 
+  let buttonText = ''
+
+  if (isSubmitting) {
+    buttonText = 'Guardando…'
+  } else if (isEdit) {
+    buttonText = 'Guardar cambios'
+  } else {
+    buttonText = 'Añadir idioma'
+  }
+
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancelar
       </Button>
       <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Añadir idioma'}
+        {buttonText}
       </Button>
     </>
   )
@@ -193,7 +203,7 @@ export const LanguageFormModal = ({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid gap-4 ">
         <div className="space-y-3">
           {flagMode === 'url' ? (
             <Input
@@ -205,7 +215,7 @@ export const LanguageFormModal = ({
             />
           ) : (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-slate-200">Subir imagen</label>
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-200">Subir imagen</p>
               <input
                 type="file"
                 accept="image/*"
@@ -213,9 +223,6 @@ export const LanguageFormModal = ({
                 disabled={isSubmitting}
                 className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-slate-900 file:mr-4 file:rounded-lg file:border-0 file:bg-bsc-blue-medium file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-bsc-blue-dark dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               />
-              <p className="text-xs text-gray-500 dark:text-slate-400">
-                Se enviará como multipart/form-data al backend (si lo soporta).
-              </p>
             </div>
           )}
 
@@ -240,15 +247,14 @@ export const LanguageFormModal = ({
           )}
         </div>
 
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/40">
+      </div>
+        <div className="rounded-3xl p-5 bg-transparent">
           <p className="text-sm font-semibold text-bsc-blue-dark dark:text-white">Notas</p>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-slate-300">
             <li>El código ISO debe ser único.</li>
             <li>Los idiomas activos se muestran en selectores inmediatamente.</li>
-            <li>Si subes una imagen, la persistencia depende del soporte del backend.</li>
           </ul>
         </div>
-      </div>
     </Modal>
   )
 }
