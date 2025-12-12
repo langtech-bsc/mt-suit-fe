@@ -1,4 +1,5 @@
 import apiClient from '../../../api/apiClient'
+import { getApiErrorMessage } from '../../../api/apiError'
 import type { AuthCredentials, AuthResponse, AuthUser } from '../types'
 
 interface LoginApiResponse {
@@ -14,7 +15,7 @@ interface CurrentUserApiResponse {
   is_superuser: boolean
   created_at: string
   updated_at: string
-  roles?: string[]
+  roles?: Array<string | { name: string }>
 }
 
 const AUTH_BASE_PATH = '/auth'
@@ -54,7 +55,7 @@ const mapCurrentUserResponse = (payload: CurrentUserApiResponse): AuthUser => ({
   username: payload.username,
   email: payload.email,
   fullName: payload.username,
-  roles: (payload.roles ?? []) as AuthUser['roles'],
+  roles: (payload.roles ?? []).map((role) => (typeof role === 'string' ? role : role.name)) as AuthUser['roles'],
   isActive: payload.is_active,
   isSuperuser: payload.is_superuser,
   createdAt: payload.created_at,
@@ -69,13 +70,21 @@ class AuthService {
       password: payload.password,
     }
 
-    const { data } = await apiClient.post<LoginApiResponse>(`${AUTH_BASE_PATH}/login`, credentials)
-    return mapLoginResponse(data)
+    try {
+      const { data } = await apiClient.post<LoginApiResponse>(`${AUTH_BASE_PATH}/login`, credentials)
+      return mapLoginResponse(data)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos iniciar sesión.'))
+    }
   }
 
   async getCurrentUser(): Promise<AuthUser> {
-    const { data } = await apiClient.get<CurrentUserApiResponse>(`${USERS_BASE_PATH}/me`)
-    return mapCurrentUserResponse(data)
+    try {
+      const { data } = await apiClient.get<CurrentUserApiResponse>(`${USERS_BASE_PATH}/me`)
+      return mapCurrentUserResponse(data)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos obtener el perfil del usuario.'))
+    }
   }
 
   async logout(): Promise<void> {

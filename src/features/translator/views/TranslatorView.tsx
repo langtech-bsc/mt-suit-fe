@@ -308,7 +308,6 @@ export const TranslatorView = () => {
           <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium">Panel izquierdo</p>
                 <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Texto origen</h3>
               </div>
               <div className="text-sm font-semibold text-slate-500 dark:text-slate-300">
@@ -350,7 +349,6 @@ export const TranslatorView = () => {
           <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium">Panel derecho</p>
                 <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Resultado</h3>
                 {mode === 'post-editing' ? (
                   <p className="text-xs text-slate-500">Pega aquí la traducción a mejorar, el resultado reemplazará este contenido.</p>

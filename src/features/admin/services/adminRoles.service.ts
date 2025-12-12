@@ -1,0 +1,57 @@
+import apiClient from '../../../api/apiClient'
+import { getApiErrorMessage } from '../../../api/apiError'
+import type { AdminPermission, AdminRole } from '../types'
+
+interface RolesApiResponse {
+  name: string
+  description: string
+  is_default: boolean
+  id: number
+  created_at: string
+  updated_at: string
+  permissions?: PermissionApiResponse[]
+}
+
+interface PermissionApiResponse {
+  id: number
+  name: string
+  description: string
+  resource: string
+  action: string
+  created_at: string
+}
+
+const ROLES_BASE_PATH = '/roles/roles'
+
+const mapPermission = (payload: PermissionApiResponse): AdminPermission => ({
+  id: payload.id,
+  name: payload.name,
+  description: payload.description,
+  resource: payload.resource,
+  action: payload.action,
+  createdAt: payload.created_at,
+})
+
+const mapRole = (payload: RolesApiResponse): AdminRole => ({
+  id: payload.id,
+  name: payload.name,
+  description: payload.description,
+  isDefault: payload.is_default,
+  createdAt: payload.created_at,
+  updatedAt: payload.updated_at,
+  permissions: (payload.permissions ?? []).map(mapPermission),
+})
+
+class AdminRolesService {
+  async list(): Promise<AdminRole[]> {
+    try {
+      const { data } = await apiClient.get<RolesApiResponse[]>(ROLES_BASE_PATH)
+      return data.map(mapRole)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos obtener la lista de roles.'))
+    }
+  }
+}
+
+export const adminRolesService = new AdminRolesService()
+

@@ -1,4 +1,5 @@
 import apiClient from '../../../api/apiClient'
+import { getApiErrorMessage } from '../../../api/apiError'
 import type { AdminPermission, AdminRole, AdminUserRecord, UsersQueryParams } from '../types'
 
 interface UsersApiResponse {
@@ -82,8 +83,28 @@ class AdminUsersService {
         ...pagination,
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No pudimos obtener la lista de usuarios.'
-      throw new Error(message)
+      throw new Error(getApiErrorMessage(error, 'No pudimos obtener la lista de usuarios.'))
+    }
+  }
+
+  async create(payload: { username: string; email: string; password: string }): Promise<AdminUserRecord> {
+    try {
+      const { data } = await apiClient.post<UsersApiResponse>(USERS_BASE_PATH, payload)
+      return mapUser(data)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos crear el usuario.'))
+    }
+  }
+
+  async update(
+    userId: number,
+    payload: { username: string; email: string; is_active: boolean; password?: string },
+  ): Promise<AdminUserRecord> {
+    try {
+      const { data } = await apiClient.put<UsersApiResponse>(`${USERS_BASE_PATH}/${userId}`, payload)
+      return mapUser(data)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el usuario.'))
     }
   }
 }

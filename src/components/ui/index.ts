@@ -28,3 +28,6 @@ export type { AlertProps, AlertVariant } from "./Alert";
 
 export { PageLoader } from "./PageLoader";
 export type { PageLoaderProps } from "./PageLoader";
+
+export { Modal } from "./Modal";
+export type { ModalProps } from "./Modal";
