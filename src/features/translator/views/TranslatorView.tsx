@@ -279,9 +279,7 @@ export const TranslatorView = () => {
           </div>
         </header>
 
-        {status && (
-          <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />
-        )}
+        
 
         <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-1">
@@ -343,38 +341,45 @@ export const TranslatorView = () => {
                 </div>
               )}
             </div>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            <div className="flex-1">
-              <LanguageSelector label="Idioma origen" selectedCode={sourceLang} onChange={setSourceLang} />
+          
+          {mode === 'grammar' ? (
+            <div className="max-w-sm">
+              <LanguageSelector label="Idioma" selectedCode={sourceLang} onChange={setSourceLang} />
+              <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
+                El modo Grammar Checker analiza gramática y ortografía en este idioma.
+              </p>
             </div>
-            <div className="flex items-center justify-center lg:pt-9">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label="Intercambiar idiomas"
-                onClick={handleSwapLanguages}
-                disabled={isProcessing}
-              >
-                <SwapIcon />
-              </Button>
+          ) : (
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+              <div className="flex-1">
+                <LanguageSelector label="Idioma origen" selectedCode={sourceLang} onChange={setSourceLang} />
+              </div>
+              <div className="flex items-center justify-center lg:pt-9">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="Intercambiar idiomas"
+                  onClick={handleSwapLanguages}
+                  disabled={isProcessing}
+                >
+                  <SwapIcon />
+                </Button>
+              </div>
+              <div className="flex-1">
+                <LanguageSelector
+                  label="Idioma destino"
+                  selectedCode={targetLang}
+                  onChange={setTargetLang}
+                  excludeCode={sourceLang}
+                />
+              </div>
             </div>
-            <div className="flex-1">
-              <LanguageSelector
-                label="Idioma destino"
-                selectedCode={targetLang}
-                onChange={setTargetLang}
-                excludeCode={sourceLang}
-              />
-              {mode === 'grammar' && (
-                <p className="pt-1 text-xs text-slate-500">
-                  El modo Grammar Checker trabaja en el idioma origen, este selector es solo referencial.
-                </p>
-              )}
-            </div>
-          </div>
+          )}
         </Card>
-
+            {status && (
+          <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />
+        )}
         <section className="grid gap-6 lg:grid-cols-2">
           <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
