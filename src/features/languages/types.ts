@@ -2,15 +2,17 @@ export interface LanguageRecord {
   id: number
   name: string
   isoCode: string
-  flagUrl: string | null
+  nativeName?: string
   isActive: boolean
+  sortOrder?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface LanguageUpsertInput {
   name: string
   isoCode: string
-  flagUrl?: string | null
-  flagFile?: File | null
+  nativeName?: string
+  sortOrder?: number
   isActive?: boolean
 }
-

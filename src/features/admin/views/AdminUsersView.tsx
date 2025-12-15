@@ -19,6 +19,58 @@ const formatDateTime = (value?: string) => {
   return parsed.toLocaleString()
 }
 
+const buildOptimisticRoles = (
+  existingRoles: AdminUserRecord['roles'],
+  roleId?: number,
+  roleName?: string,
+): AdminUserRecord['roles'] => {
+  if (typeof roleId !== 'number' || !roleName) {
+    return existingRoles
+  }
+  return [
+    {
+      id: roleId,
+      name: roleName,
+      description: '',
+      isDefault: false,
+      createdAt: '',
+      updatedAt: '',
+      permissions: [],
+    },
+  ]
+}
+
+const applyOptimisticUserUpdate = (
+  previous: { data: AdminUserRecord[]; skip: number; limit: number } | undefined,
+  variables: {
+    userId: number
+    payload: { username: string; email: string; is_active: boolean; password?: string }
+    roleId?: number
+    roleName?: string
+  },
+) => {
+  if (!previous) {
+    return previous
+  }
+  const { userId, payload, roleId, roleName } = variables
+
+  return {
+    ...previous,
+    data: previous.data.map((existing) => {
+      if (existing.id !== userId) {
+        return existing
+      }
+      return {
+        ...existing,
+        username: payload.username,
+        email: payload.email,
+        isActive: payload.is_active,
+        roles: buildOptimisticRoles(existing.roles, roleId, roleName),
+      }
+    }),
+  }
+}
+
 const matchesQuery = (record: AdminUserRecord, query: string) => {
   const normalized = query.trim().toLowerCase()
   if (!normalized) {
@@ -79,6 +131,10 @@ export const AdminUsersView = () => {
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b))
   }, [rolesPayload])
 
+  const roleNameToId = useMemo(() => {
+    return new Map((rolesPayload ?? []).map((role) => [role.name, role.id] as const))
+  }, [rolesPayload])
+
   const filteredUsers = useMemo(() => {
     return users.filter((record) => {
       if (filters.status === 'active' && !record.isActive) {
@@ -94,7 +150,7 @@ export const AdminUsersView = () => {
     })
   }, [users, filters])
 
-  const updateCachedUser = (updated: AdminUserRecord) => {
+  const updateCachedUser = (updated: AdminUserRecord, previousRoles?: AdminUserRecord['roles']) => {
     queryClient.setQueriesData<{ data: AdminUserRecord[]; skip: number; limit: number }>(
       { queryKey: ['admin-users'] },
       (previous) => {
@@ -103,7 +159,13 @@ export const AdminUsersView = () => {
         }
         return {
           ...previous,
-          data: previous.data.map((existing) => (existing.id === updated.id ? updated : existing)),
+          data: previous.data.map((existing) => {
+            if (existing.id !== updated.id) {
+              return existing
+            }
+            const roles = updated.roles.length > 0 ? updated.roles : previousRoles ?? existing.roles
+            return { ...updated, roles }
+          }),
         }
       },
     )
@@ -123,35 +185,22 @@ export const AdminUsersView = () => {
   const updateUserMutation = useMutation<
     AdminUserRecord,
     Error,
-    { userId: number; payload: { username: string; email: string; is_active: boolean; password?: string } },
+    { userId: number; payload: { username: string; email: string; is_active: boolean; password?: string }; roleId?: number; roleName?: string },
     { snapshot: Array<[readonly unknown[], unknown]> }
   >({
-    mutationFn: ({ userId, payload }) => adminUsersService.update(userId, payload),
-    onMutate: async ({ userId, payload }) => {
+    mutationFn: async ({ userId, payload, roleId }) => {
+      if (typeof roleId === 'number') {
+        await adminRolesService.assignRole({ userId, roleId })
+      }
+      return adminUsersService.update(userId, payload)
+    },
+    onMutate: async ({ userId, payload, roleId, roleName }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] })
       const snapshot = queryClient.getQueriesData({ queryKey: ['admin-users'] })
 
       queryClient.setQueriesData<{ data: AdminUserRecord[]; skip: number; limit: number }>(
         { queryKey: ['admin-users'] },
-        (previous) => {
-          if (!previous) {
-            return previous
-          }
-          return {
-            ...previous,
-            data: previous.data.map((existing) => {
-              if (existing.id !== userId) {
-                return existing
-              }
-              return {
-                ...existing,
-                username: payload.username,
-                email: payload.email,
-                isActive: payload.is_active,
-              }
-            }),
-          }
-        },
+        (previous) => applyOptimisticUserUpdate(previous, { userId, payload, roleId, roleName }),
       )
 
       return { snapshot }
@@ -164,8 +213,9 @@ export const AdminUsersView = () => {
       }
       setActionError(error.message)
     },
-    onSuccess: (updated) => {
-      updateCachedUser(updated)
+    onSuccess: (updated, variables) => {
+      const previousUser = users.find((item) => item.id === variables.userId)
+      updateCachedUser(updated, previousUser?.roles)
       setEditingUser(null)
     },
     onSettled: () => {
@@ -214,6 +264,17 @@ export const AdminUsersView = () => {
   const handleEdit = (userId: number, payload: EditUserInput) => {
     const password = payload.password?.trim() ? payload.password : undefined
     setActionError(null)
+
+    const currentUser = users.find((candidate) => candidate.id === userId)
+    const currentRoleName = currentUser?.roles[0]?.name ?? 'all'
+    const nextRoleName = payload.role?.trim() ? payload.role : 'all'
+    const shouldAssignRole = nextRoleName !== 'all' && nextRoleName !== currentRoleName
+    const roleId = shouldAssignRole ? roleNameToId.get(nextRoleName) : undefined
+    if (shouldAssignRole && typeof roleId !== 'number') {
+      setActionError('No pudimos identificar el rol seleccionado. Refresca la lista de roles e inténtalo de nuevo.')
+      return
+    }
+
     updateUserMutation.mutate({
       userId,
       payload: {
@@ -222,6 +283,8 @@ export const AdminUsersView = () => {
         is_active: payload.isActive,
         password,
       },
+      roleId,
+      roleName: shouldAssignRole ? nextRoleName : undefined,
     })
   }
 

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef } from "react";
-import type { InputHTMLAttributes, MutableRefObject, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
     label?: string | ReactNode;
@@ -18,7 +18,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             if (typeof ref === "function") {
                 ref(node);
             } else if (ref) {
-                (ref as MutableRefObject<HTMLInputElement | null>).current = node;
+                (ref).current = node;
             }
         };
 

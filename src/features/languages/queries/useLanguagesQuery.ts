@@ -9,7 +9,7 @@ export const useLanguagesQuery = () => {
 
   const query = useQuery<LanguageRecord[], Error>({
     queryKey: ['languages'],
-    queryFn: () => languageAdminService.list(),
+    queryFn: () => languageAdminService.list({ skip: 0, limit: 100, onlyActive: false }),
     retry: 1,
     staleTime: 60_000,
   })
@@ -22,4 +22,3 @@ export const useLanguagesQuery = () => {
 
   return query
 }
-

@@ -3,31 +3,41 @@ import { getApiErrorMessage } from '../../../api/apiError'
 import type { LanguageRecord, LanguageUpsertInput } from '../types'
 
 interface LanguageApiResponse {
+  code: string
+  name: string
+  native_name?: string
   id: number
-  name?: string
-  iso_code?: string
-  code?: string
-  flag_url?: string | null
-  flag?: string | null
-  is_active?: boolean
+  is_active: boolean
+  sort_order?: number
+  created_at?: string
+  updated_at?: string
 }
 
-const LANGUAGES_BASE_PATH = '/languages'
+const LANGUAGES_BASE_PATH = '/translations/languages'
 
 const mapLanguage = (payload: LanguageApiResponse): LanguageRecord => ({
   id: payload.id,
   name: payload.name ?? '',
-  isoCode: payload.iso_code ?? payload.code ?? '',
-  flagUrl: payload.flag_url ?? payload.flag ?? null,
+  nativeName: payload.native_name,
+  isoCode: payload.code ?? '',
   isActive: payload.is_active ?? true,
+  sortOrder: payload.sort_order,
+  createdAt: payload.created_at,
+  updatedAt: payload.updated_at,
 })
 
 const normalizeIsoCode = (value: string) => value.trim().toLowerCase()
 
 class LanguageAdminService {
-  async list(): Promise<LanguageRecord[]> {
+  async list(params?: { skip?: number; limit?: number; onlyActive?: boolean }): Promise<LanguageRecord[]> {
     try {
-      const { data } = await apiClient.get<LanguageApiResponse[]>(LANGUAGES_BASE_PATH)
+      const { data } = await apiClient.get<LanguageApiResponse[]>(LANGUAGES_BASE_PATH, {
+        params: {
+          skip: params?.skip ?? 0,
+          limit: params?.limit ?? 200,
+          only_active: params?.onlyActive ?? false,
+        },
+      })
       return data.map(mapLanguage)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'No pudimos cargar los idiomas.'))
@@ -36,19 +46,11 @@ class LanguageAdminService {
 
   async create(input: LanguageUpsertInput): Promise<LanguageRecord> {
     try {
-      if (input.flagFile) {
-        const form = new FormData()
-        form.append('name', input.name)
-        form.append('iso_code', normalizeIsoCode(input.isoCode))
-        form.append('flag', input.flagFile)
-        const { data } = await apiClient.post<LanguageApiResponse>(LANGUAGES_BASE_PATH, form)
-        return mapLanguage(data)
-      }
-
       const body = {
+        code: normalizeIsoCode(input.isoCode),
         name: input.name,
-        iso_code: normalizeIsoCode(input.isoCode),
-        flag_url: input.flagUrl ?? null,
+        native_name: input.nativeName ?? input.name,
+        sort_order: input.sortOrder ?? 0,
       }
       const { data } = await apiClient.post<LanguageApiResponse>(LANGUAGES_BASE_PATH, body)
       return mapLanguage(data)
@@ -59,25 +61,13 @@ class LanguageAdminService {
 
   async update(id: number, input: LanguageUpsertInput): Promise<LanguageRecord> {
     try {
-      if (input.flagFile) {
-        const form = new FormData()
-        form.append('name', input.name)
-        form.append('iso_code', normalizeIsoCode(input.isoCode))
-        form.append('flag', input.flagFile)
-        if (typeof input.isActive === 'boolean') {
-          form.append('is_active', String(input.isActive))
-        }
-        const { data } = await apiClient.patch<LanguageApiResponse>(`${LANGUAGES_BASE_PATH}/${id}`, form)
-        return mapLanguage(data)
-      }
-
       const body = {
         name: input.name,
-        iso_code: normalizeIsoCode(input.isoCode),
-        flag_url: input.flagUrl ?? null,
-        is_active: typeof input.isActive === 'boolean' ? input.isActive : undefined,
+        native_name: input.nativeName ?? input.name,
+        is_active: input.isActive ?? true,
+        sort_order: input.sortOrder ?? 0,
       }
-      const { data } = await apiClient.patch<LanguageApiResponse>(`${LANGUAGES_BASE_PATH}/${id}`, body)
+      const { data } = await apiClient.put<LanguageApiResponse>(`${LANGUAGES_BASE_PATH}/${id}`, body)
       return mapLanguage(data)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el idioma.'))
@@ -94,4 +84,3 @@ class LanguageAdminService {
 }
 
 export const languageAdminService = new LanguageAdminService()
-
