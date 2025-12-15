@@ -8,7 +8,7 @@ import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import {
   requestGrammarCheck,
   requestPostEditing,
-  requestTranslation,
+  requestTranslationStream,
   type TranslatorMode,
 } from '../services/translator.service'
 
@@ -56,6 +56,7 @@ export const TranslatorView = () => {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
 
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
@@ -68,6 +69,19 @@ export const TranslatorView = () => {
     setOutputText('')
     setStatus(null)
   }, [mode])
+
+  useEffect(() => {
+    if (!isProcessing || mode !== 'translate') {
+      return
+    }
+
+    const textarea = outputTextareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    textarea.scrollTop = textarea.scrollHeight
+  }, [outputText, isProcessing, mode])
 
   const sortedProviders = useMemo(() => {
     return (providers ?? []).slice().sort((a, b) => {
@@ -167,6 +181,7 @@ export const TranslatorView = () => {
     }
 
     setIsProcessing(true)
+    setOutputText('')
     setStatus({
       variant: 'info',
       title: 'Procesando',
@@ -177,12 +192,17 @@ export const TranslatorView = () => {
       let result = ''
       const providerPayload = typeof providerId === 'number' ? { providerId } : {}
       if (mode === 'translate') {
-        result = await requestTranslation({
-          text: inputText.trim(),
-          sourceLanguage: sourceLang,
-          targetLanguage: targetLang,
-          ...providerPayload,
-        })
+        result = await requestTranslationStream(
+          {
+            text: inputText.trim(),
+            sourceLanguage: sourceLang,
+            targetLanguage: targetLang,
+            ...providerPayload,
+          },
+          (_delta, fullText) => {
+            setOutputText(fullText)
+          },
+        )
       } else if (mode === 'grammar') {
         result = await requestGrammarCheck({
           text: inputText.trim(),
@@ -378,8 +398,8 @@ export const TranslatorView = () => {
           )}
         </Card>
             {status && (
-          <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />
-        )}
+              <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />
+            )}
         <section className="grid gap-6 lg:grid-cols-2">
           <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -469,6 +489,7 @@ export const TranslatorView = () => {
                 placeholder="Aquí verás la traducción, corrección gramatical o postedición."
                 rows={14}
                 value={outputText}
+                ref={outputTextareaRef}
                 onChange={(event) => {
                   if (mode === 'post-editing') {
                     setOutputText(event.target.value)
@@ -477,7 +498,7 @@ export const TranslatorView = () => {
                 readOnly={mode !== 'post-editing' || isProcessing}
                 className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
               />
-              {isProcessing && (
+              {isProcessing && (mode !== 'translate' || outputText.trim().length === 0) && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
                   <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
                     <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud…

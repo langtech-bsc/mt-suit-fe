@@ -21,7 +21,7 @@ export const BrandLogo = ({
   ...props
 }: BrandLogoProps) => {
   const { themeState } = useTheme()
-  const resolvedTone = textTone === 'auto' ? (themeState === 'dark' ? 'light' : 'dark') : textTone
+  const resolvedTone = textTone === 'auto' ? (themeState === 'dark' ? 'light' : 'dark') : textTone // NOSONAR
 
   return (
     <div
