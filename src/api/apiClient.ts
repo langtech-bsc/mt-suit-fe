@@ -28,7 +28,7 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
-    return Promise.reject(new Error(error));
+    return Promise.reject(error);
   }
 );
 
@@ -52,9 +52,6 @@ apiClient.interceptors.response.use(
         case 500:
         case 502:
         case 503:
-          if (typeof globalThis !== 'undefined') {
-            globalThis.location.href = '/';
-          }
           console.error("Error interno del servidor.");
           break;
           
@@ -63,7 +60,7 @@ apiClient.interceptors.response.use(
           break;
       }
     }
-    return Promise.reject(new Error(error));
+    return Promise.reject(error);
   }
 );
 
