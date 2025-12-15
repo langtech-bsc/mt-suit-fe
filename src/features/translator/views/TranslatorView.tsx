@@ -3,6 +3,8 @@ import type { ChangeEvent } from 'react'
 import { Document, Packer, Paragraph } from 'docx'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { Alert, Button, Card, Select, Textarea } from '../../../components/ui'
+import { useAuthStore } from '../../auth/store/auth.store'
+import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import {
   requestGrammarCheck,
   requestPostEditing,
@@ -38,6 +40,10 @@ type ExportFormat = (typeof EXPORT_FORMATS)[number]['value']
 type StatusState = { variant: 'info' | 'success' | 'warning' | 'danger'; title: string; description: string }
 
 export const TranslatorView = () => {
+  const user = useAuthStore((state) => state.user)
+  const canChangeProvider = Boolean(user?.isSuperuser)
+  const { data: providers, isLoading: isLoadingProviders, error: providersError } = useProvidersQuery()
+
   const [mode, setMode] = useState<TranslatorMode>('translate')
   const [sourceLang, setSourceLang] = useState('es')
   const [targetLang, setTargetLang] = useState('en')
@@ -50,6 +56,7 @@ export const TranslatorView = () => {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [providerId, setProviderId] = useState<number | null>(null)
 
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
   const inputCharacters = inputText.length
@@ -61,6 +68,27 @@ export const TranslatorView = () => {
     setOutputText('')
     setStatus(null)
   }, [mode])
+
+  const sortedProviders = useMemo(() => {
+    return (providers ?? []).slice().sort((a, b) => {
+      if (a.isDefault !== b.isDefault) {
+        return a.isDefault ? -1 : 1
+      }
+      return a.name.localeCompare(b.name)
+    })
+  }, [providers])
+
+  useEffect(() => {
+    if (providerId !== null) {
+      return
+    }
+    if (!sortedProviders || sortedProviders.length === 0) {
+      return
+    }
+
+    const defaultProvider = sortedProviders.find((record) => record.isDefault)
+    setProviderId(defaultProvider?.id ?? sortedProviders[0]!.id)
+  }, [providerId, sortedProviders])
 
   const handleModeChange = (nextMode: TranslatorMode) => {
     if (nextMode === mode) return
@@ -147,21 +175,25 @@ export const TranslatorView = () => {
 
     try {
       let result = ''
+      const providerPayload = typeof providerId === 'number' ? { providerId } : {}
       if (mode === 'translate') {
         result = await requestTranslation({
           text: inputText.trim(),
           sourceLanguage: sourceLang,
           targetLanguage: targetLang,
+          ...providerPayload,
         })
       } else if (mode === 'grammar') {
         result = await requestGrammarCheck({
           text: inputText.trim(),
           language: sourceLang,
+          ...providerPayload,
         })
       } else {
         result = await requestPostEditing({
           text: outputText.trim(),
           language: targetLang,
+          ...providerPayload,
         })
       }
 
@@ -221,6 +253,14 @@ export const TranslatorView = () => {
     setOutputText('')
   }
 
+  let fileButtonText = "Subir archivo"
+  if (uploadedFileName) {
+    fileButtonText = uploadedFileName.slice(0, 15)
+    if (uploadedFileName.length > 15) {
+      fileButtonText += '...'
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-blue-50/40 to-blue-100/20 px-4 py-8 text-slate-900 dark:bg-gradient-to-b dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50 sm:px-6 lg:px-10">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
@@ -271,11 +311,43 @@ export const TranslatorView = () => {
         </Card>
 
         <Card padding="lg" className="space-y-6 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+           <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="w-full sm:w-72">
+                <Select
+                  label="Modelo"
+                  value={providerId !== null ? String(providerId) : ''}
+                  onChange={(event) => setProviderId(Number(event.target.value))}
+                  disabled={!canChangeProvider || isProcessing || isLoadingProviders || sortedProviders.length === 0}
+                  helperText={
+                    !canChangeProvider
+                      ? 'Solo superusers pueden cambiarlo.'
+                      : providersError
+                        ? 'No pudimos cargar modelos.'
+                        : undefined
+                  }
+                >
+                  {isLoadingProviders && <option value="">Cargando modelos…</option>}
+                  {!isLoadingProviders && sortedProviders.length === 0 && <option value="">Sin modelos disponibles</option>}
+                  {sortedProviders.map((record) => (
+                    <option key={record.id} value={String(record.id)}>
+                      {record.name}
+                      {record.isDefault ? ' (default)' : ''}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              {providersError && (
+                <div className="w-full sm:w-auto">
+                  <p className="text-xs text-red-600 dark:text-red-200">{providersError.message}</p>
+                </div>
+              )}
+            </div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
             <div className="flex-1">
               <LanguageSelector label="Idioma origen" selectedCode={sourceLang} onChange={setSourceLang} />
             </div>
-            <div className="flex items-center justify-center lg:pt-7">
+            <div className="flex items-center justify-center lg:pt-9">
               <Button
                 type="button"
                 variant="outline"
@@ -285,7 +357,6 @@ export const TranslatorView = () => {
                 disabled={isProcessing}
               >
                 <SwapIcon />
-                Intercambiar
               </Button>
             </div>
             <div className="flex-1">
@@ -314,6 +385,9 @@ export const TranslatorView = () => {
                 {inputCharacters.toLocaleString('es-ES')} / {MAX_CHARACTERS.toLocaleString('es-ES')}
               </div>
             </div>
+
+            
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -323,13 +397,9 @@ export const TranslatorView = () => {
                   onClick={triggerFileDialog}
                   disabled={isProcessing || mode === 'post-editing'}
                 >
-                  Subir archivo
+                  {fileButtonText}
                 </Button>
-                {uploadedFileName && (
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    Cargado: <span className="font-medium">{uploadedFileName}</span>
-                  </span>
-                )}
+                
                 <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={isProcessing}>
                   Limpiar texto
                 </Button>
@@ -369,7 +439,7 @@ export const TranslatorView = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Resultado</h3>
-               
+                
               </div>
             </div>
               <div className="flex items-center gap-3">

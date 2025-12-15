@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminProvidersRouteImport } from './routes/admin.providers'
 import { Route as AdminLanguagesRouteImport } from './routes/admin.languages'
 
 const UiRoute = UiRouteImport.update({
@@ -47,6 +48,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminProvidersRoute = AdminProvidersRouteImport.update({
+  id: '/admin/providers',
+  path: '/admin/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLanguagesRoute = AdminLanguagesRouteImport.update({
   id: '/admin/languages',
   path: '/admin/languages',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
   '/admin/languages': typeof AdminLanguagesRoute
+  '/admin/providers': typeof AdminProvidersRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
   '/admin/languages': typeof AdminLanguagesRoute
+  '/admin/providers': typeof AdminProvidersRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/translator': typeof TranslatorRoute
   '/ui': typeof UiRoute
   '/admin/languages': typeof AdminLanguagesRoute
+  '/admin/providers': typeof AdminProvidersRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/translator'
     | '/ui'
     | '/admin/languages'
+    | '/admin/providers'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/translator'
     | '/ui'
     | '/admin/languages'
+    | '/admin/providers'
     | '/admin/users'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/translator'
     | '/ui'
     | '/admin/languages'
+    | '/admin/providers'
     | '/admin/users'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   TranslatorRoute: typeof TranslatorRoute
   UiRoute: typeof UiRoute
   AdminLanguagesRoute: typeof AdminLanguagesRoute
+  AdminProvidersRoute: typeof AdminProvidersRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/providers': {
+      id: '/admin/providers'
+      path: '/admin/providers'
+      fullPath: '/admin/providers'
+      preLoaderRoute: typeof AdminProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/languages': {
       id: '/admin/languages'
       path: '/admin/languages'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   TranslatorRoute: TranslatorRoute,
   UiRoute: UiRoute,
   AdminLanguagesRoute: AdminLanguagesRoute,
+  AdminProvidersRoute: AdminProvidersRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport
