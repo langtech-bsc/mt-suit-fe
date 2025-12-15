@@ -22,6 +22,7 @@ interface PermissionApiResponse {
 }
 
 const ROLES_BASE_PATH = '/roles/roles'
+const ROLES_ASSIGN_PATH = '/roles/roles/assign'
 
 const mapPermission = (payload: PermissionApiResponse): AdminPermission => ({
   id: payload.id,
@@ -51,7 +52,17 @@ class AdminRolesService {
       throw new Error(getApiErrorMessage(error, 'No pudimos obtener la lista de roles.'))
     }
   }
+
+  async assignRole(payload: { userId: number; roleId: number }): Promise<void> {
+    try {
+      await apiClient.post(ROLES_ASSIGN_PATH, {
+        user_id: payload.userId,
+        role_id: payload.roleId,
+      })
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el rol del usuario.'))
+    }
+  }
 }
 
 export const adminRolesService = new AdminRolesService()
-

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Alert, Badge, Button, Card, ConfirmDialog, Input, PageLoader, Select, Switch } from '../../../components/ui'
+import { Alert, Button, Card, ConfirmDialog, Input, PageLoader, Select, Switch } from '../../../components/ui'
 import { useLanguagesQuery } from '../../languages/queries/useLanguagesQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
 import { languageAdminService } from '../../languages/services/languageAdmin.service'
@@ -144,8 +144,9 @@ export const AdminLanguagesView = () => {
       payload: {
         name: lang.name,
         isoCode: lang.isoCode,
-        flagUrl: lang.flagUrl,
+        nativeName: lang.nativeName,
         isActive: next,
+        sortOrder: lang.sortOrder,
       },
     })
   }
@@ -218,9 +219,6 @@ export const AdminLanguagesView = () => {
             Mostrando <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{filteredLanguages.length}</span> de{' '}
             <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{languages.length}</span>
           </p>
-          <Badge variant="outline" size="sm">
-            GET /languages
-          </Badge>
         </div>
 
         {filteredLanguages.length === 0 ? (
@@ -233,9 +231,9 @@ export const AdminLanguagesView = () => {
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-slate-700">
               <thead className="text-xs uppercase text-gray-500 dark:text-slate-400">
                 <tr className="bg-gray-50 dark:bg-slate-900/40">
-                  <th className="px-4 py-3 font-semibold">Bandera</th>
                   <th className="px-4 py-3 font-semibold">Nombre</th>
                   <th className="px-4 py-3 font-semibold">ISO</th>
+                  <th className="px-4 py-3 font-semibold">Nativo</th>
                   <th className="px-4 py-3 font-semibold">Activo</th>
                   <th className="px-4 py-3 font-semibold">Acciones</th>
                 </tr>
@@ -246,23 +244,13 @@ export const AdminLanguagesView = () => {
                   return (
                     <tr key={lang.id} className="bg-white transition hover:bg-blue-50/40 dark:bg-slate-900 dark:hover:bg-slate-800">
                       <td className="px-4 py-3">
-                        {lang.flagUrl ? (
-                          <img
-                            src={lang.flagUrl}
-                            alt={`Bandera ${lang.name}`}
-                            className="h-8 w-12 rounded-lg border border-gray-200 object-cover dark:border-slate-700"
-                          />
-                        ) : (
-                          <div className="flex h-8 w-12 items-center justify-center rounded-lg border border-dashed border-gray-300 text-xs text-gray-400 dark:border-slate-700 dark:text-slate-500">
-                            —
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
                         <p className="font-semibold text-bsc-blue-dark dark:text-slate-100">{lang.name}</p>
                         <p className="text-xs text-gray-500 dark:text-slate-400">ID {lang.id}</p>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-slate-200">{lang.isoCode}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
+                        {lang.nativeName ?? '—'}
+                      </td>
                       <td className="px-4 py-3">
                         <Switch
                           checked={lang.isActive}

@@ -14,8 +14,9 @@ const seedLanguages: LanguageRecord[] = SUPPORTED_LANGUAGES.map((language, index
   id: -(index + 1),
   name: language.name,
   isoCode: language.code,
-  flagUrl: null,
+  nativeName: language.name,
   isActive: true,
+  sortOrder: index,
 }))
 
 export const useLanguagesStore = create<LanguagesState>((set, get) => ({
@@ -44,4 +45,3 @@ export const useLanguagesStore = create<LanguagesState>((set, get) => ({
     return get().languages.find((language) => language.isoCode.toLowerCase() === normalized)
   },
 }))
-
