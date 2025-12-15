@@ -40,7 +40,7 @@ export const ConfirmDialog = ({
   )
 
   return (
-    <Modal open={open} onClose={onClose} title={title} description={description} footer={footer} size="sm">
+    <Modal open={open} onClose={onClose} title={title} footer={footer} size="sm">
       <div className="text-sm text-gray-600 dark:text-slate-300">
         {description ?? 'Confirma para continuar.'}
       </div>

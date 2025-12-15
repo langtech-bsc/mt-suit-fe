@@ -21,7 +21,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
                     className={`w-full px-4 py-2.5 rounded-lg border ${error
                             ? "border-red-500 focus:ring-red-500"
                             : "border-gray-300 focus:ring-bsc-blue-medium dark:border-slate-700 dark:focus:ring-bsc-blue-medium"
-                        } bg-gray-50 text-slate-900 focus:ring-2 focus:outline-none resize-none transition-shadow dark:bg-slate-900 dark:text-slate-100 ${className}`}
+                        } bg-gray-50 text-slate-900 focus:ring-2 focus:outline-none transition-shadow dark:bg-slate-900 dark:text-slate-100 ${className}`}
                     {...props}
                 />
                 {error && (
@@ -36,3 +36,4 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 );
 
 Textarea.displayName = "Textarea";
+

@@ -17,6 +17,7 @@ const RootLayout = () => {
   const status = useAuthStore((state) => state.status)
   const { themeState, toggleTheme } = useTheme()
   const canSeeLanguagesAdmin = isAdminUser(user)
+  const canSeeProvidersAdmin = isAdminUser(user)
   const canSeeUsersAdmin = isSuperAdminUser(user)
 
   const handleLogout = async () => {
@@ -53,6 +54,14 @@ const RootLayout = () => {
                   className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
                 >
                   Idiomas
+                </Link>
+              )}
+              {canSeeProvidersAdmin && (
+                <Link
+                  to="/admin/providers"
+                  className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
+                >
+                  Providers
                 </Link>
               )}
               {canSeeUsersAdmin && (
