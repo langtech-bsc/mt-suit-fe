@@ -10,11 +10,12 @@ interface LanguageSelectorProps {
 }
 
 export function LanguageSelector({ label, selectedCode, onChange, excludeCode }: Readonly<LanguageSelectorProps>) {
-    useLanguagesQuery();
+    const { isLoading, error } = useLanguagesQuery();
     const languages = useLanguagesStore((state) => state.languages);
 
     const options = languages
         .filter((language) => language.isActive)
+        .sort((a, b) => a.name.localeCompare(b.name))
         .map((lang) => ({
             value: lang.isoCode,
             label: lang.name,
@@ -27,6 +28,8 @@ export function LanguageSelector({ label, selectedCode, onChange, excludeCode }:
             value={selectedCode}
             onChange={(e) => onChange(e.target.value)}
             options={options}
+            disabled={options.length === 0}
+            helperText={isLoading ? 'Cargando idiomas…' : error ? error.message : undefined}
         />
     );
 }
