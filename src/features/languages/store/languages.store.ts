@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { LanguageRecord } from '../types'
-import { SUPPORTED_LANGUAGES } from '../../../data/languages'
 
 interface LanguagesState {
   languages: LanguageRecord[]
@@ -10,17 +9,8 @@ interface LanguagesState {
   getByIsoCode: (isoCode: string) => LanguageRecord | undefined
 }
 
-const seedLanguages: LanguageRecord[] = SUPPORTED_LANGUAGES.map((language, index) => ({
-  id: -(index + 1),
-  name: language.name,
-  isoCode: language.code,
-  nativeName: language.name,
-  isActive: true,
-  sortOrder: index,
-}))
-
 export const useLanguagesStore = create<LanguagesState>((set, get) => ({
-  languages: seedLanguages,
+  languages: [],
   setLanguages(languages) {
     set({ languages })
   },
