@@ -166,6 +166,8 @@ export const AdminProvidersView = () => {
         configuration: record.configuration,
         isActive: nextActive,
         isDefault: record.isDefault,
+        inputLanguageIds: record.inputLanguageIds,
+        outputLanguageIds: record.outputLanguageIds,
       },
       successMessage: nextActive ? `Proveedor "${record.name}" activado.` : `Proveedor "${record.name}" deshabilitado.`,
     })
@@ -183,6 +185,8 @@ export const AdminProvidersView = () => {
         configuration: record.configuration,
         isActive: record.isActive,
         isDefault: nextDefault,
+        inputLanguageIds: record.inputLanguageIds,
+        outputLanguageIds: record.outputLanguageIds,
       },
       successMessage: nextDefault ? `Proveedor "${record.name}" marcado como default.` : `Proveedor "${record.name}" dejó de ser default.`,
     })

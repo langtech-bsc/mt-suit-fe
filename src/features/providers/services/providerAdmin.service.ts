@@ -1,6 +1,6 @@
 import apiClient from '../../../api/apiClient'
 import { getApiErrorMessage } from '../../../api/apiError'
-import type { ProviderConfiguration, ProviderCreateInput, ProviderRecord, ProviderUpdateInput, ProvidersQueryParams } from '../types'
+import type { ProviderConfiguration, ProviderCreateInput, ProviderLanguage, ProviderRecord, ProviderUpdateInput, ProvidersQueryParams } from '../types'
 
 interface ProviderApiResponse {
   id: number
@@ -8,11 +8,24 @@ interface ProviderApiResponse {
   provider_type: string
   endpoint: string
   region: string
+  input_language_ids?: number[]
+  output_language_ids?: number[]
   is_active: boolean
   is_default: boolean
   configuration?: ProviderConfiguration
+  input_languages?: ProviderLanguageApiResponse[]
+  output_languages?: ProviderLanguageApiResponse[]
   created_at: string
   updated_at: string
+}
+
+interface ProviderLanguageApiResponse {
+  id: number
+  code: string
+  name: string
+  native_name?: string
+  is_active: boolean
+  sort_order?: number
 }
 
 const PROVIDERS_BASE_PATH = '/translations/providers'
@@ -24,15 +37,28 @@ const normalizePagination = (params?: ProvidersQueryParams) => {
   return { skip, limit }
 }
 
+const mapProviderLanguage = (payload: ProviderLanguageApiResponse): ProviderLanguage => ({
+  id: payload.id,
+  code: payload.code,
+  name: payload.name,
+  nativeName: payload.native_name,
+  isActive: payload.is_active,
+  sortOrder: payload.sort_order,
+})
+
 const mapProvider = (payload: ProviderApiResponse): ProviderRecord => ({
   id: payload.id,
   name: payload.name,
   providerType: payload.provider_type,
   endpoint: payload.endpoint,
   region: payload.region,
+  inputLanguageIds: payload.input_language_ids ?? [],
+  outputLanguageIds: payload.output_language_ids ?? [],
   isActive: payload.is_active,
   isDefault: payload.is_default,
   configuration: payload.configuration ?? {},
+  inputLanguages: (payload.input_languages ?? []).map(mapProviderLanguage),
+  outputLanguages: (payload.output_languages ?? []).map(mapProviderLanguage),
   createdAt: payload.created_at,
   updatedAt: payload.updated_at,
 })
@@ -55,6 +81,8 @@ class ProviderAdminService {
         provider_type: payload.providerType,
         endpoint: payload.endpoint,
         region: payload.region,
+        input_language_ids: payload.inputLanguageIds,
+        output_language_ids: payload.outputLanguageIds,
         api_key: payload.apiKey,
         configuration: payload.configuration,
         is_active: payload.isActive,
@@ -75,6 +103,8 @@ class ProviderAdminService {
         configuration: payload.configuration,
         is_active: payload.isActive,
         is_default: payload.isDefault,
+        input_language_ids: payload.inputLanguageIds,
+        output_language_ids: payload.outputLanguageIds,
       }
 
       if (typeof payload.apiKey === 'string' && payload.apiKey.trim().length > 0) {
@@ -98,4 +128,3 @@ class ProviderAdminService {
 }
 
 export const providerAdminService = new ProviderAdminService()
-
