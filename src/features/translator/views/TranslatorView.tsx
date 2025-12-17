@@ -7,11 +7,12 @@ import { Alert, Button, Card, Select, Textarea } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import {
-  requestGrammarCheck,
+  requestGrammarCheckDetailed,
   requestPostEditing,
   requestTranslationStream,
   type TranslatorMode,
 } from '../services/translator.service'
+import type { GrammarSuggestion } from '../services/translator.service'
 
 const MAX_CHARACTERS = 25_000
 const AUTO_TRANSLATE_DEBOUNCE_MS = 400
@@ -57,6 +58,8 @@ export const TranslatorView = () => {
   const [exportFormat, setExportFormat] = useState<ExportFormat>('txt')
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [grammarSuggestions, setGrammarSuggestions] = useState<GrammarSuggestion[]>([])
+  const [grammarHasErrors, setGrammarHasErrors] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const translateAbortRef = useRef<AbortController | null>(null)
@@ -71,6 +74,8 @@ export const TranslatorView = () => {
   useEffect(() => {
     setOutputText('')
     setStatus(null)
+    setGrammarSuggestions([])
+    setGrammarHasErrors(false)
   }, [mode])
 
   useEffect(() => {
@@ -230,11 +235,14 @@ export const TranslatorView = () => {
           { signal: abortController.signal },
         )
       } else if (mode === 'grammar') {
-        result = await requestGrammarCheck({
+        const payload = await requestGrammarCheckDetailed({
           text: inputText.trim(),
           language: sourceLang,
           ...providerPayload,
         })
+        setGrammarSuggestions(payload.suggestions)
+        setGrammarHasErrors(payload.hasErrors)
+        result = payload.correctedText
       } else {
         result = await requestPostEditing({
           text: postEditSourceText,
@@ -573,6 +581,42 @@ export const TranslatorView = () => {
                 </div>
               )}
             </div>
+
+            {mode === 'grammar' && (
+              <div className="space-y-3">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {grammarHasErrors ? 'Se detectaron sugerencias.' : 'No se detectaron errores.'}
+                </div>
+                {grammarSuggestions.length > 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
+                    <p className="text-sm font-semibold text-bsc-blue-dark dark:text-white">Sugerencias</p>
+                    <ul className="mt-3 space-y-3 text-sm text-slate-700 dark:text-slate-200">
+                      {grammarSuggestions.slice(0, 8).map((item, index) => (
+                        <li key={`${item.position}-${index}`} className="rounded-lg bg-white p-3 shadow-sm dark:bg-slate-900">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span>Posición: {item.position}</span>
+                          </div>
+                          <p className="mt-1">
+                            <span className="font-semibold">Original:</span> {item.original}
+                          </p>
+                          <p className="mt-1">
+                            <span className="font-semibold">Corrección:</span> {item.correction}
+                          </p>
+                          {item.explanation && (
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{item.explanation}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {grammarSuggestions.length > 8 && (
+                      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                        Mostrando 8 de {grammarSuggestions.length} sugerencias.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
               <span>
                 Estado: <strong className="font-semibold">{status ? status.title : 'Pendiente'}</strong>

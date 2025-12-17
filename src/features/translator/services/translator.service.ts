@@ -25,7 +25,7 @@ export interface PostEditRequestBody {
 
 const TRANSLATOR_ENDPOINTS: Record<TranslatorMode, string> = {
   translate: '/translations/translate/stream',
-  grammar: '/grammar-check',
+  grammar: '/translations/grammar-check',
   'post-editing': '/post-edit',
 }
 
@@ -46,6 +46,7 @@ function extractResult(payload: unknown): string {
       'translation',
       'translated_text',
       'translatedText',
+      'corrected_text',
       'correctedText',
       'postEditedText',
       'text',
@@ -65,6 +66,19 @@ function extractResult(payload: unknown): string {
   } catch {
     return ''
   }
+}
+
+export type GrammarSuggestion = {
+  original: string
+  correction: string
+  explanation: string
+  position: number
+}
+
+type GrammarCheckApiResponse = {
+  corrected_text?: string
+  suggestions?: GrammarSuggestion[]
+  has_errors?: boolean
 }
 
 const normalizeMaybeJsonString = (value: string): string => {
@@ -138,9 +152,26 @@ export async function requestTranslationStream(
 }
 
 export async function requestGrammarCheck(body: GrammarRequestBody): Promise<string> {
+  const response = await requestGrammarCheckDetailed(body)
+  return response.correctedText
+}
+
+export async function requestGrammarCheckDetailed(
+  body: GrammarRequestBody,
+): Promise<{ correctedText: string; suggestions: GrammarSuggestion[]; hasErrors: boolean }> {
   try {
-    const response = await apiClient.post(TRANSLATOR_ENDPOINTS.grammar, body)
-    return extractResult(response.data)
+    const response = await apiClient.post<GrammarCheckApiResponse>(TRANSLATOR_ENDPOINTS.grammar, {
+      text: body.text,
+      language_code: body.language,
+      provider_id: body.providerId,
+    })
+
+    const correctedText = extractResult(response.data)
+    return {
+      correctedText,
+      suggestions: response.data?.suggestions ?? [],
+      hasErrors: Boolean(response.data?.has_errors),
+    }
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'No pudimos corregir la gramática.'))
   }
