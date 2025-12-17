@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Document, Packer, Paragraph } from 'docx'
 import axios from 'axios'
@@ -11,11 +11,24 @@ import {
   requestPostEditing,
   requestTranslationStream,
   type TranslatorMode,
+  type GrammarSuggestion,
+  type PostEditLength,
+  type PostEditTone,
 } from '../services/translator.service'
-import type { GrammarSuggestion } from '../services/translator.service'
 
 const MAX_CHARACTERS = 25_000
 const AUTO_TRANSLATE_DEBOUNCE_MS = 400
+const POST_EDITING_BUTTON_LABEL = 'Mejorar traducción'
+const POST_EDIT_TONES: Array<{ value: PostEditTone; label: string }> = [
+  { value: 'conciso', label: 'Conciso' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'amigable', label: 'Amigable' },
+]
+const POST_EDIT_LENGTHS: Array<{ value: PostEditLength; label: string }> = [
+  { value: 'original', label: 'Mantener' },
+  { value: 'shorter', label: 'Más corto' },
+  { value: 'longer', label: 'Más largo' },
+]
 const EXPORT_FORMATS = [
   { value: 'txt', label: 'Texto (.txt)' },
   { value: 'docx', label: 'Word (.docx)' },
@@ -35,12 +48,41 @@ const MODE_CONFIG: Record<TranslatorMode, { label: string; description: string; 
   'post-editing': {
     label: 'Post-Editing',
     description: 'Refina la traducción pegada en el panel derecho para mejorar estilo y fluidez.',
-    actionLabel: 'Mejorar traducción',
+    actionLabel: 'Traducir',
   },
 }
 
 type ExportFormat = (typeof EXPORT_FORMATS)[number]['value']
 type StatusState = { variant: 'info' | 'success' | 'warning' | 'danger'; title: string; description: string }
+
+const buildMissingContentMessage = (mode: TranslatorMode) =>
+  mode === 'post-editing'
+    ? 'Pega o genera una traducción en el panel derecho antes de mejorarla.'
+    : 'Escribe o carga al menos un carácter en el panel izquierdo para continuar.'
+
+const computeCanProcess = (params: {
+  mode: TranslatorMode
+  inputText: string
+  outputText: string
+  charError: string | null
+}) => {
+  if (params.mode === 'post-editing') {
+    return params.outputText.trim().length > 0
+  }
+  return params.inputText.trim().length > 0 && !params.charError
+}
+
+const isCanceledError = (error: unknown) => axios.isAxiosError(error) && error.code === 'ERR_CANCELED'
+
+const getProviderHelperText = (params: { canChangeProvider: boolean; providersError: unknown }) => {
+  if (!params.canChangeProvider) {
+    return 'Solo superusers pueden cambiarlo.'
+  }
+  if (params.providersError) {
+    return 'No pudimos cargar modelos.'
+  }
+  return undefined
+}
 
 export const TranslatorView = () => {
   const user = useAuthStore((state) => state.user)
@@ -60,6 +102,8 @@ export const TranslatorView = () => {
   const [fileError, setFileError] = useState<string | null>(null)
   const [grammarSuggestions, setGrammarSuggestions] = useState<GrammarSuggestion[]>([])
   const [grammarHasErrors, setGrammarHasErrors] = useState(false)
+  const [postEditTone, setPostEditTone] = useState<PostEditTone>('amigable')
+  const [postEditLength, setPostEditLength] = useState<PostEditLength>('original')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const translateAbortRef = useRef<AbortController | null>(null)
@@ -67,9 +111,11 @@ export const TranslatorView = () => {
 
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
   const inputCharacters = inputText.length
-  const canProcess =
-    mode === 'post-editing' ? outputText.trim().length > 0 : inputText.trim().length > 0 && !charError
+  const canTranslateInput = computeCanProcess({ mode: 'translate', inputText, outputText, charError })
+  const canPostEditOutput = outputText.trim().length > 0
   const isExportDisabled = outputText.trim().length === 0 || isProcessing
+  const providerHelperText = getProviderHelperText({ canChangeProvider, providersError })
+  const selectedProviderId = typeof providerId === 'number' ? providerId : undefined
 
   useEffect(() => {
     setOutputText('')
@@ -116,7 +162,7 @@ export const TranslatorView = () => {
     }
 
     const defaultProvider = sortedProviders.find((record) => record.isDefault)
-    setProviderId(defaultProvider?.id ?? sortedProviders[0]!.id)
+    setProviderId(defaultProvider?.id ?? sortedProviders[0].id)
   }, [providerId, sortedProviders])
 
   const handleModeChange = (nextMode: TranslatorMode) => {
@@ -179,16 +225,57 @@ export const TranslatorView = () => {
     fileInputRef.current?.click()
   }
 
-  const runProcess = async (origin: 'manual' | 'auto') => {
-    const isManual = origin === 'manual'
-    const postEditSourceText = outputText.trim()
+  const performTranslate = useCallback(async () => {
+    const abortController = new AbortController()
+    translateAbortRef.current = abortController
 
-    if (!canProcess) {
+    return requestTranslationStream(
+      {
+        text: inputText.trim(),
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+        providerId: selectedProviderId,
+      },
+      (_delta, fullText) => {
+        setOutputText(fullText)
+      },
+      { signal: abortController.signal },
+    )
+  }, [inputText, selectedProviderId, sourceLang, targetLang])
+
+  const performGrammar = useCallback(async () => {
+    const payload = await requestGrammarCheckDetailed({
+      text: inputText.trim(),
+      language: sourceLang,
+      providerId: selectedProviderId,
+    })
+    setGrammarSuggestions(payload.suggestions)
+    setGrammarHasErrors(payload.hasErrors)
+    return payload.correctedText
+  }, [inputText, selectedProviderId, sourceLang])
+
+  const performPostEdit = useCallback(
+    async (text: string) => {
+      return requestPostEditing({
+        text,
+        language: targetLang,
+        providerId: selectedProviderId,
+        tone: postEditTone,
+        length: postEditLength,
+      })
+    },
+    [postEditLength, postEditTone, selectedProviderId, targetLang],
+  )
+
+  const runProcess = useCallback(async (origin: 'manual' | 'auto') => {
+    const isManual = origin === 'manual'
+
+    if (!canTranslateInput) {
       if (isManual) {
         const message =
           mode === 'post-editing'
-            ? 'Pega o genera una traducción en el panel derecho antes de mejorarla.'
-            : 'Escribe o carga al menos un carácter en el panel izquierdo para continuar.'
+            ? 'Escribe o carga un texto en el panel izquierdo para traducir.'
+            : buildMissingContentMessage(mode)
         setStatus({
           variant: 'warning',
           title: 'Falta contenido',
@@ -198,13 +285,13 @@ export const TranslatorView = () => {
       return
     }
 
-    if (mode === 'translate') {
+    if (mode === 'translate' || mode === 'post-editing') {
       translateAbortRef.current?.abort()
       translateAbortRef.current = null
     }
 
     setIsProcessing(true)
-    if (mode === 'translate') {
+    if (mode === 'translate' || mode === 'post-editing') {
       setOutputText('')
     }
     if (isManual) {
@@ -217,38 +304,16 @@ export const TranslatorView = () => {
 
     try {
       let result = ''
-      const providerPayload = typeof providerId === 'number' ? { providerId } : {}
-      if (mode === 'translate') {
-        const abortController = new AbortController()
-        translateAbortRef.current = abortController
-
-        result = await requestTranslationStream(
-          {
-            text: inputText.trim(),
-            sourceLanguage: sourceLang,
-            targetLanguage: targetLang,
-            ...providerPayload,
-          },
-          (_delta, fullText) => {
-            setOutputText(fullText)
-          },
-          { signal: abortController.signal },
-        )
-      } else if (mode === 'grammar') {
-        const payload = await requestGrammarCheckDetailed({
-          text: inputText.trim(),
-          language: sourceLang,
-          ...providerPayload,
-        })
-        setGrammarSuggestions(payload.suggestions)
-        setGrammarHasErrors(payload.hasErrors)
-        result = payload.correctedText
-      } else {
-        result = await requestPostEditing({
-          text: postEditSourceText,
-          language: targetLang,
-          ...providerPayload,
-        })
+      switch (mode) {
+        case 'translate':
+          result = await performTranslate()
+          break
+        case 'grammar':
+          result = await performGrammar()
+          break
+        case 'post-editing':
+          result = await performTranslate()
+          break
       }
 
       setOutputText(result)
@@ -260,7 +325,7 @@ export const TranslatorView = () => {
         })
       }
     } catch (error) {
-      if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
+      if (isCanceledError(error)) {
         return
       }
       const description = error instanceof Error ? error.message : 'No pudimos completar la operación.'
@@ -273,11 +338,65 @@ export const TranslatorView = () => {
       translateAbortRef.current = null
       setIsProcessing(false)
     }
-  }
+  }, [
+    activeConfig.actionLabel,
+    activeConfig.label,
+    mode,
+    outputText,
+    canTranslateInput,
+    performGrammar,
+    performPostEdit,
+    performTranslate,
+  ])
 
   const handleProcess = async () => {
     await runProcess('manual')
   }
+
+  const handlePostEdit = useCallback(async () => {
+    if (isProcessing) {
+      return
+    }
+
+    if (!canPostEditOutput) {
+      setStatus({
+        variant: 'warning',
+        title: 'Falta contenido',
+        description: 'Primero traduce o pega un texto en el panel derecho para aplicar Post-Editing.',
+      })
+      return
+    }
+
+    setIsProcessing(true)
+    setStatus({
+      variant: 'info',
+      title: 'Mejorando traducción',
+      description: 'Aplicando mejoras de estilo y fluidez…',
+    })
+
+    try {
+      const sourceText = outputText.trim()
+      const result = await performPostEdit(sourceText)
+      setOutputText(result)
+      setStatus({
+        variant: 'success',
+        title: 'Listo',
+        description: 'Post-Editing completado correctamente.',
+      })
+    } catch (error) {
+      if (isCanceledError(error)) {
+        return
+      }
+      const description = error instanceof Error ? error.message : 'No pudimos completar la operación.'
+      setStatus({
+        variant: 'danger',
+        title: 'Error en la solicitud',
+        description,
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [canPostEditOutput, isProcessing, outputText, performPostEdit])
 
   useEffect(() => {
     if (mode !== 'translate') {
@@ -411,13 +530,7 @@ export const TranslatorView = () => {
                   value={providerId !== null ? String(providerId) : ''}
                   onChange={(event) => setProviderId(Number(event.target.value))}
                   disabled={!canChangeProvider || isProcessing || isLoadingProviders || sortedProviders.length === 0}
-                  helperText={
-                    !canChangeProvider
-                      ? 'Solo superusers pueden cambiarlo.'
-                      : providersError
-                        ? 'No pudimos cargar modelos.'
-                        : undefined
-                  }
+                  helperText={providerHelperText}
                 >
                   {isLoadingProviders && <option value="">Cargando modelos…</option>}
                   {!isLoadingProviders && sortedProviders.length === 0 && <option value="">Sin modelos disponibles</option>}
@@ -486,6 +599,29 @@ export const TranslatorView = () => {
               </div>
             </div>
 
+            {mode === 'post-editing' && (
+              <div aria-hidden="true" className="pointer-events-none opacity-0">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select
+                    label="Tono"
+                    value={postEditTone}
+                    onChange={() => {}}
+                    disabled
+                    options={POST_EDIT_TONES}
+                    className="bg-white dark:bg-slate-800 h-8 text-sm !py-1"
+                  />
+                  <Select
+                    label="Longitud"
+                    value={postEditLength}
+                    onChange={() => {}}
+                    disabled
+                    options={POST_EDIT_LENGTHS}
+                    className="bg-white dark:bg-slate-800 h-8 text-sm !py-1"
+                  />
+                </div>
+              </div>
+            )}
+
             
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -495,7 +631,7 @@ export const TranslatorView = () => {
                   variant="secondary"
                   size="sm"
                   onClick={triggerFileDialog}
-                  disabled={isProcessing || mode === 'post-editing'}
+                  disabled={isProcessing}
                 >
                   {fileButtonText}
                 </Button>
@@ -505,15 +641,16 @@ export const TranslatorView = () => {
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleProcess}
-                  disabled={!canProcess || isProcessing}
-                >
-                  {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
-                </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={handleProcess}
+                    disabled={!canTranslateInput || isProcessing}
+                  >
+                    {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
+                  </Button>
+              
               </div>
             </div>
             <Textarea
@@ -521,8 +658,15 @@ export const TranslatorView = () => {
               rows={14}
               value={inputText}
               onChange={handleInputChange}
+              disabled={isProcessing}
               className="bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
-              helperText={!charError ? 'Este texto alimenta los modos Translate y Grammar Checker.' : undefined}
+              helperText={
+                charError
+                  ? undefined
+                  : mode === 'post-editing'
+                    ? 'Puedes seguir traduciendo desde este panel; el Post-Editing se aplica sobre el texto del panel derecho.'
+                    : 'Este texto alimenta los modos Translate y Grammar Checker.'
+              }
               error={charError ?? undefined}
             />
             {fileError && <p className="text-xs text-red-500">{fileError}</p>}
@@ -542,7 +686,29 @@ export const TranslatorView = () => {
                 
               </div>
             </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                {mode === 'post-editing' && (
+                  <>
+                    <Select
+                      label="Tono"
+                      value={postEditTone}
+                      onChange={(event) => setPostEditTone(event.target.value as PostEditTone)}
+                      disabled={isProcessing}
+                      options={POST_EDIT_TONES}
+                      className="min-w-[160px] bg-white dark:bg-slate-800 h-8 text-sm !py-1"
+                    />
+                    <Select
+                      label="Longitud"
+                      value={postEditLength}
+                      onChange={(event) => setPostEditLength(event.target.value as PostEditLength)}
+                      disabled={isProcessing}
+                      options={POST_EDIT_LENGTHS}
+                      className="min-w-[160px] bg-white dark:bg-slate-800 h-8 text-sm !py-1"
+                    />
+                  </>
+                )}
+                <div className='flex gap-3'>
+
                 <Select
                   value={exportFormat}
                   onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
@@ -557,6 +723,19 @@ export const TranslatorView = () => {
                 <Button type="button" variant="primary" size="sm" onClick={handleExport} disabled={isExportDisabled}>
                   Exportar
                 </Button>
+                </div>
+                {mode === 'post-editing' && (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={handlePostEdit}
+                    disabled={!canPostEditOutput || isProcessing}
+                    className="sm:ml-auto"
+                  >
+                    {isProcessing ? 'Procesando…' : POST_EDITING_BUTTON_LABEL}
+                  </Button>
+                )}
               </div>
 
             <div className="relative">
@@ -590,8 +769,8 @@ export const TranslatorView = () => {
                 {grammarSuggestions.length > 0 && (
                   <div className="rounded-xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
                     <p className="text-sm font-semibold text-bsc-blue-dark dark:text-white">Sugerencias</p>
-                    <ul className="mt-3 space-y-3 text-sm text-slate-700 dark:text-slate-200">
-                      {grammarSuggestions.slice(0, 8).map((item, index) => (
+                    <ul className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-2 text-sm text-slate-700 dark:text-slate-200">
+                      {grammarSuggestions.slice(0, 50).map((item, index) => (
                         <li key={`${item.position}-${index}`} className="rounded-lg bg-white p-3 shadow-sm dark:bg-slate-900">
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                             <span>Posición: {item.position}</span>
@@ -602,15 +781,12 @@ export const TranslatorView = () => {
                           <p className="mt-1">
                             <span className="font-semibold">Corrección:</span> {item.correction}
                           </p>
-                          {item.explanation && (
-                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{item.explanation}</p>
-                          )}
                         </li>
                       ))}
                     </ul>
-                    {grammarSuggestions.length > 8 && (
+                    {grammarSuggestions.length > 50 && (
                       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                        Mostrando 8 de {grammarSuggestions.length} sugerencias.
+                        Mostrando 50 de {grammarSuggestions.length} sugerencias.
                       </p>
                     )}
                   </div>

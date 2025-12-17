@@ -4,6 +4,10 @@ import axios from 'axios'
 
 export type TranslatorMode = 'translate' | 'grammar' | 'post-editing'
 
+export type PostEditLength = 'shorter' | 'longer' | 'original'
+
+export type PostEditTone = 'conciso' | 'formal' | 'amigable'
+
 export interface TranslateRequestBody {
   text: string
   sourceLanguage: string
@@ -21,12 +25,14 @@ export interface PostEditRequestBody {
   text: string
   language: string
   providerId?: number
+  tone?: PostEditTone
+  length?: PostEditLength
 }
 
 const TRANSLATOR_ENDPOINTS: Record<TranslatorMode, string> = {
   translate: '/translations/translate/stream',
   grammar: '/translations/grammar-check',
-  'post-editing': '/post-edit',
+  'post-editing': '/translations/post-edit',
 }
 
 function extractResult(payload: unknown): string {
@@ -48,6 +54,8 @@ function extractResult(payload: unknown): string {
       'translatedText',
       'corrected_text',
       'correctedText',
+      'edited_text',
+      'editedText',
       'postEditedText',
       'text',
       'message',
@@ -179,7 +187,13 @@ export async function requestGrammarCheckDetailed(
 
 export async function requestPostEditing(body: PostEditRequestBody): Promise<string> {
   try {
-    const response = await apiClient.post(TRANSLATOR_ENDPOINTS['post-editing'], body)
+    const response = await apiClient.post(TRANSLATOR_ENDPOINTS['post-editing'], {
+      text: body.text,
+      language_code: body.language,
+      tone: body.tone,
+      length: body.length,
+      provider_id: body.providerId,
+    })
     return extractResult(response.data)
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'No pudimos mejorar la traducción.'))
