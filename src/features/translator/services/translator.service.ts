@@ -1,5 +1,6 @@
 import apiClient from '../../../api/apiClient'
 import { getApiErrorMessage } from '../../../api/apiError'
+import axios from 'axios'
 
 export type TranslatorMode = 'translate' | 'grammar' | 'post-editing'
 
@@ -91,6 +92,7 @@ export async function requestTranslation(body: TranslateRequestBody): Promise<st
 export async function requestTranslationStream(
   body: TranslateRequestBody,
   onChunk: (nextText: string, fullText: string) => void,
+  options?: { signal?: AbortSignal },
 ): Promise<string> {
   let streamedText = ''
 
@@ -105,6 +107,7 @@ export async function requestTranslationStream(
       },
       {
         responseType: 'text',
+        signal: options?.signal,
         onDownloadProgress: (progressEvent) => {
           const xhr = progressEvent.event?.target as XMLHttpRequest | undefined
           const nextText = xhr?.responseText
@@ -127,6 +130,9 @@ export async function requestTranslationStream(
     const finalText = typeof response.data === 'string' ? response.data : streamedText
     return extractResult(normalizeMaybeJsonString(finalText))
   } catch (error) {
+    if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
+      throw error
+    }
     throw new Error(getApiErrorMessage(error, 'No pudimos traducir el texto.'))
   }
 }
