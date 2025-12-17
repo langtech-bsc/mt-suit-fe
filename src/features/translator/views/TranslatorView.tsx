@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Document, Packer, Paragraph } from 'docx'
+import axios from 'axios'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { Alert, Button, Card, Select, Textarea } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
@@ -13,6 +14,7 @@ import {
 } from '../services/translator.service'
 
 const MAX_CHARACTERS = 25_000
+const AUTO_TRANSLATE_DEBOUNCE_MS = 400
 const EXPORT_FORMATS = [
   { value: 'txt', label: 'Texto (.txt)' },
   { value: 'docx', label: 'Word (.docx)' },
@@ -57,6 +59,7 @@ export const TranslatorView = () => {
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const translateAbortRef = useRef<AbortController | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
 
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
@@ -69,6 +72,13 @@ export const TranslatorView = () => {
     setOutputText('')
     setStatus(null)
   }, [mode])
+
+  useEffect(() => {
+    return () => {
+      translateAbortRef.current?.abort()
+      translateAbortRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (!isProcessing || mode !== 'translate') {
@@ -164,34 +174,49 @@ export const TranslatorView = () => {
     fileInputRef.current?.click()
   }
 
-  const handleProcess = async () => {
-    if (isProcessing) return
+  const runProcess = async (origin: 'manual' | 'auto') => {
+    const isManual = origin === 'manual'
+    const postEditSourceText = outputText.trim()
 
     if (!canProcess) {
-      const message =
-        mode === 'post-editing'
-          ? 'Pega o genera una traducción en el panel derecho antes de mejorarla.'
-          : 'Escribe o carga al menos un carácter en el panel izquierdo para continuar.'
-      setStatus({
-        variant: 'warning',
-        title: 'Falta contenido',
-        description: message,
-      })
+      if (isManual) {
+        const message =
+          mode === 'post-editing'
+            ? 'Pega o genera una traducción en el panel derecho antes de mejorarla.'
+            : 'Escribe o carga al menos un carácter en el panel izquierdo para continuar.'
+        setStatus({
+          variant: 'warning',
+          title: 'Falta contenido',
+          description: message,
+        })
+      }
       return
     }
 
+    if (mode === 'translate') {
+      translateAbortRef.current?.abort()
+      translateAbortRef.current = null
+    }
+
     setIsProcessing(true)
-    setOutputText('')
-    setStatus({
-      variant: 'info',
-      title: 'Procesando',
-      description: `${activeConfig.actionLabel} en curso. Esto puede tardar unos segundos…`,
-    })
+    if (mode === 'translate') {
+      setOutputText('')
+    }
+    if (isManual) {
+      setStatus({
+        variant: 'info',
+        title: 'Procesando',
+        description: `${activeConfig.actionLabel} en curso. Esto puede tardar unos segundos…`,
+      })
+    }
 
     try {
       let result = ''
       const providerPayload = typeof providerId === 'number' ? { providerId } : {}
       if (mode === 'translate') {
+        const abortController = new AbortController()
+        translateAbortRef.current = abortController
+
         result = await requestTranslationStream(
           {
             text: inputText.trim(),
@@ -202,6 +227,7 @@ export const TranslatorView = () => {
           (_delta, fullText) => {
             setOutputText(fullText)
           },
+          { signal: abortController.signal },
         )
       } else if (mode === 'grammar') {
         result = await requestGrammarCheck({
@@ -211,19 +237,24 @@ export const TranslatorView = () => {
         })
       } else {
         result = await requestPostEditing({
-          text: outputText.trim(),
+          text: postEditSourceText,
           language: targetLang,
           ...providerPayload,
         })
       }
 
       setOutputText(result)
-      setStatus({
-        variant: 'success',
-        title: 'Listo',
-        description: `${activeConfig.label} completado correctamente.`,
-      })
+      if (isManual) {
+        setStatus({
+          variant: 'success',
+          title: 'Listo',
+          description: `${activeConfig.label} completado correctamente.`,
+        })
+      }
     } catch (error) {
+      if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
+        return
+      }
       const description = error instanceof Error ? error.message : 'No pudimos completar la operación.'
       setStatus({
         variant: 'danger',
@@ -231,9 +262,45 @@ export const TranslatorView = () => {
         description,
       })
     } finally {
+      translateAbortRef.current = null
       setIsProcessing(false)
     }
   }
+
+  const handleProcess = async () => {
+    await runProcess('manual')
+  }
+
+  useEffect(() => {
+    if (mode !== 'translate') {
+      return
+    }
+
+    if (charError) {
+      return
+    }
+
+    const trimmed = inputText.trim()
+    if (!trimmed) {
+      setOutputText('')
+      return
+    }
+
+    if (providerId === null) {
+      return
+    }
+
+    translateAbortRef.current?.abort()
+    translateAbortRef.current = null
+
+    const timeoutId = window.setTimeout(() => {
+      void runProcess('auto')
+    }, AUTO_TRANSLATE_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [inputText, sourceLang, targetLang, providerId, mode, charError])
 
   const handleExport = async () => {
     if (isExportDisabled) return
