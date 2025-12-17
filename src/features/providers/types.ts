@@ -5,15 +5,28 @@ export type ProvidersQueryParams = {
 
 export type ProviderConfiguration = Record<string, unknown>
 
+export type ProviderLanguage = {
+  id: number
+  code: string
+  name: string
+  nativeName?: string
+  isActive: boolean
+  sortOrder?: number
+}
+
 export interface ProviderRecord {
   id: number
   name: string
   providerType: string
   endpoint: string
   region: string
+  inputLanguageIds: number[]
+  outputLanguageIds: number[]
   isActive: boolean
   isDefault: boolean
   configuration: ProviderConfiguration
+  inputLanguages: ProviderLanguage[]
+  outputLanguages: ProviderLanguage[]
   createdAt: string
   updatedAt: string
 }
@@ -23,6 +36,8 @@ export type ProviderCreateInput = {
   providerType: string
   endpoint: string
   region: string
+  inputLanguageIds: number[]
+  outputLanguageIds: number[]
   apiKey: string
   configuration: ProviderConfiguration
   isActive: boolean
@@ -37,5 +52,6 @@ export type ProviderUpdateInput = {
   configuration: ProviderConfiguration
   isActive: boolean
   isDefault: boolean
+  inputLanguageIds: number[]
+  outputLanguageIds: number[]
 }
-

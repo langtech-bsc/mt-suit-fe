@@ -6,6 +6,7 @@ import { LanguageSelector } from '../../../components/LanguageSelector'
 import { Alert, Button, Card, Select, Textarea } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
+import { useLanguagesStore } from '../../languages/store/languages.store'
 import {
   requestGrammarCheckDetailed,
   requestPostEditing,
@@ -88,6 +89,7 @@ export const TranslatorView = () => {
   const user = useAuthStore((state) => state.user)
   const canChangeProvider = Boolean(user?.isSuperuser)
   const { data: providers, isLoading: isLoadingProviders, error: providersError } = useProvidersQuery()
+  const languages = useLanguagesStore((state) => state.languages)
 
   const [mode, setMode] = useState<TranslatorMode>('translate')
   const [sourceLang, setSourceLang] = useState('es')
@@ -152,6 +154,70 @@ export const TranslatorView = () => {
       return a.name.localeCompare(b.name)
     })
   }, [providers])
+
+  const selectedProvider = useMemo(() => {
+    if (typeof providerId !== 'number') {
+      return null
+    }
+    return sortedProviders.find((record) => record.id === providerId) ?? null
+  }, [providerId, sortedProviders])
+
+  const languageIdToCode = useMemo(() => {
+    return new Map(languages.map((lang) => [lang.id, lang.isoCode] as const))
+  }, [languages])
+
+  const providerInputCodes = useMemo(() => {
+    if (!selectedProvider) {
+      return undefined
+    }
+    const fromObjects = selectedProvider.inputLanguages.map((lang) => lang.code).filter(Boolean)
+    if (fromObjects.length > 0) {
+      return fromObjects
+    }
+    const fromIds = selectedProvider.inputLanguageIds
+      .map((id) => languageIdToCode.get(id))
+      .filter((code): code is string => typeof code === 'string' && code.trim().length > 0)
+    return fromIds.length > 0 ? fromIds : undefined
+  }, [languageIdToCode, selectedProvider])
+
+  const providerOutputCodes = useMemo(() => {
+    if (!selectedProvider) {
+      return undefined
+    }
+    const fromObjects = selectedProvider.outputLanguages.map((lang) => lang.code).filter(Boolean)
+    if (fromObjects.length > 0) {
+      return fromObjects
+    }
+    const fromIds = selectedProvider.outputLanguageIds
+      .map((id) => languageIdToCode.get(id))
+      .filter((code): code is string => typeof code === 'string' && code.trim().length > 0)
+    return fromIds.length > 0 ? fromIds : undefined
+  }, [languageIdToCode, selectedProvider])
+
+  useEffect(() => {
+    if (!providerInputCodes || providerInputCodes.length === 0) {
+      return
+    }
+    if (!providerInputCodes.includes(sourceLang)) {
+      setSourceLang(providerInputCodes[0]!)
+    }
+  }, [providerInputCodes, sourceLang])
+
+  useEffect(() => {
+    if (!providerOutputCodes || providerOutputCodes.length === 0) {
+      return
+    }
+
+    const isValid = providerOutputCodes.includes(targetLang)
+    if (isValid && targetLang !== sourceLang) {
+      return
+    }
+
+    const candidate = providerOutputCodes.find((code) => code !== sourceLang) ?? providerOutputCodes[0]
+    if (candidate && candidate !== targetLang) {
+      setTargetLang(candidate)
+    }
+  }, [providerOutputCodes, sourceLang, targetLang])
 
   useEffect(() => {
     if (providerId !== null) {
@@ -552,7 +618,12 @@ export const TranslatorView = () => {
           
           {mode === 'grammar' ? (
             <div className="max-w-sm">
-              <LanguageSelector label="Idioma" selectedCode={sourceLang} onChange={setSourceLang} />
+              <LanguageSelector
+                label="Idioma"
+                selectedCode={sourceLang}
+                onChange={setSourceLang}
+                allowedIsoCodes={providerInputCodes}
+              />
               <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
                 El modo Grammar Checker analiza gramática y ortografía en este idioma.
               </p>
@@ -560,7 +631,12 @@ export const TranslatorView = () => {
           ) : (
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
               <div className="flex-1">
-                <LanguageSelector label="Idioma origen" selectedCode={sourceLang} onChange={setSourceLang} />
+                <LanguageSelector
+                  label="Idioma origen"
+                  selectedCode={sourceLang}
+                  onChange={setSourceLang}
+                  allowedIsoCodes={providerInputCodes}
+                />
               </div>
               <div className="flex items-center justify-center lg:pt-9">
                 <Button
@@ -580,6 +656,7 @@ export const TranslatorView = () => {
                   selectedCode={targetLang}
                   onChange={setTargetLang}
                   excludeCode={sourceLang}
+                  allowedIsoCodes={providerOutputCodes}
                 />
               </div>
             </div>
