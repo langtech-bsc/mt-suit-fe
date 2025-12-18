@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 import { Document, Packer, Paragraph } from 'docx'
 import axios from 'axios'
 import { LanguageSelector } from '../../../components/LanguageSelector'
@@ -12,7 +12,7 @@ import {
   requestPostEditing,
   requestTranslationStream,
   type TranslatorMode,
-  type GrammarSuggestion,
+  type GrammarSuggestion, 
   type PostEditLength,
   type PostEditTone,
 } from '../services/translator.service'
@@ -85,6 +85,117 @@ const getProviderHelperText = (params: { canChangeProvider: boolean; providersEr
   return undefined
 }
 
+type HighlightRange = { start: number; end: number }
+type HighlightSpan = HighlightRange & { id: number }
+type HighlightCandidateKey = 'correction' | 'original'
+
+const resolveHighlightRange = (
+  text: string,
+  suggestion: GrammarSuggestion,
+  candidates: HighlightCandidateKey[],
+): HighlightRange | null => {
+  const start = suggestion.position
+  if (typeof start !== 'number' || start < 0 || start >= text.length) {
+    return null
+  }
+
+  const directCandidates = candidates.map((candidate) => suggestion[candidate]).filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  )
+
+  for (const candidate of directCandidates) {
+    if (text.slice(start, start + candidate.length) === candidate) {
+      return { start, end: start + candidate.length }
+    }
+  }
+
+  for (const candidate of directCandidates) {
+    const idx = text.indexOf(candidate, start)
+    if (idx !== -1 && idx - start <= 200) {
+      return { start: idx, end: idx + candidate.length }
+    }
+  }
+
+  return null
+}
+
+const buildHighlightSpans = (text: string, suggestions: GrammarSuggestion[], candidates: HighlightCandidateKey[]) => {
+  const spans: HighlightSpan[] = []
+  suggestions.forEach((suggestion, index) => {
+    const range = resolveHighlightRange(text, suggestion, candidates)
+    if (range && range.end > range.start) {
+      spans.push({ id: index, ...range })
+    }
+  })
+
+  spans.sort((a, b) => a.start - b.start || a.end - b.end)
+
+  const compact: HighlightSpan[] = []
+  let cursor = -1
+  for (const span of spans) {
+    if (span.start < cursor) {
+      continue
+    }
+    compact.push(span)
+    cursor = span.end
+  }
+
+  return compact
+}
+
+const renderHighlightedText = (
+  text: string,
+  spans: HighlightSpan[],
+  hoveredId: number | null,
+  setHoveredId: (next: number | null) => void,
+  onSpanEnter?: (params: { id: number; element: HTMLSpanElement }) => void,
+  onSpanLeave?: () => void,
+): ReactNode => {
+  if (!spans.length) {
+    return text
+  }
+
+  const nodes: ReactNode[] = []
+  let index = 0
+  let spanIndex = 0
+
+  while (index < text.length && spanIndex < spans.length) {
+    const span = spans[spanIndex]!
+    if (span.start > index) {
+      nodes.push(text.slice(index, span.start))
+    }
+    const isHovered = hoveredId === span.id
+    nodes.push(
+      <span
+        key={`hl-${span.id}-${span.start}-${span.end}`}
+        className={[
+          'inline cursor-pointer border-b-2 pb-0.5 text-slate-900 transition-colors dark:text-slate-50',
+          'border-emerald-400 hover:border-emerald-500 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15',
+          isHovered ? 'border-emerald-500 bg-emerald-100/60 dark:bg-emerald-500/15' : '',
+        ].join(' ')}
+        onMouseEnter={(event) => {
+          setHoveredId(span.id)
+          onSpanEnter?.({ id: span.id, element: event.currentTarget })
+        }}
+        onMouseLeave={() => {
+          setHoveredId(null)
+          onSpanLeave?.()
+        }}
+      >
+        {text.slice(span.start, span.end)}
+      </span>,
+    )
+    index = span.end
+    spanIndex += 1
+  }
+
+  if (index < text.length) {
+    nodes.push(text.slice(index))
+  }
+
+  return nodes
+}
+
 export const TranslatorView = () => {
   const user = useAuthStore((state) => state.user)
   const canChangeProvider = Boolean(user?.isSuperuser)
@@ -104,12 +215,18 @@ export const TranslatorView = () => {
   const [fileError, setFileError] = useState<string | null>(null)
   const [grammarSuggestions, setGrammarSuggestions] = useState<GrammarSuggestion[]>([])
   const [grammarHasErrors, setGrammarHasErrors] = useState(false)
+  const [hoveredGrammarSuggestionId, setHoveredGrammarSuggestionId] = useState<number | null>(null)
   const [postEditTone, setPostEditTone] = useState<PostEditTone>('amigable')
   const [postEditLength, setPostEditLength] = useState<PostEditLength>('original')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const inputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const inputSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const inputActiveElementRef = useRef<HTMLElement | null>(null)
   const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const grammarOutputRef = useRef<HTMLDivElement | null>(null)
   const translateAbortRef = useRef<AbortController | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
+  const [grammarPopover, setGrammarPopover] = useState<{ id: number; top: number; left: number } | null>(null)
 
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
   const inputCharacters = inputText.length
@@ -118,13 +235,71 @@ export const TranslatorView = () => {
   const isExportDisabled = outputText.trim().length === 0 || isProcessing
   const providerHelperText = getProviderHelperText({ canChangeProvider, providersError })
   const selectedProviderId = typeof providerId === 'number' ? providerId : undefined
+  const grammarHighlightSpans = useMemo(
+    () => buildHighlightSpans(outputText, grammarSuggestions, ['correction', 'original']),
+    [grammarSuggestions, outputText],
+  )
+  const grammarInputHighlightSpans = useMemo(
+    () => buildHighlightSpans(inputText, grammarSuggestions, ['original', 'correction']),
+    [grammarSuggestions, inputText],
+  )
 
   useEffect(() => {
     setOutputText('')
     setStatus(null)
     setGrammarSuggestions([])
     setGrammarHasErrors(false)
+    setHoveredGrammarSuggestionId(null)
+    setGrammarPopover(null)
   }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'grammar') {
+      return
+    }
+    const textarea = inputTextareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    if (hoveredGrammarSuggestionId === null) {
+      const prevSelection = inputSelectionRef.current
+      if (!prevSelection) {
+        return
+      }
+      inputSelectionRef.current = null
+      const prevActiveElement = inputActiveElementRef.current
+      inputActiveElementRef.current = null
+      try {
+        textarea.setSelectionRange(prevSelection.start, prevSelection.end)
+      } catch {
+        // noop
+      }
+      if (prevActiveElement && prevActiveElement !== textarea) {
+        try {
+          prevActiveElement.focus({ preventScroll: true })
+        } catch {
+          // noop
+        }
+      }
+      return
+    }
+
+    const range = grammarInputHighlightSpans.find((span) => span.id === hoveredGrammarSuggestionId)
+    if (!range) {
+      return
+    }
+    if (!inputSelectionRef.current) {
+      inputSelectionRef.current = { start: textarea.selectionStart ?? 0, end: textarea.selectionEnd ?? 0 }
+      inputActiveElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
+    try {
+      textarea.focus({ preventScroll: true })
+      textarea.setSelectionRange(range.start, range.end)
+    } catch {
+      // noop
+    }
+  }, [grammarInputHighlightSpans, hoveredGrammarSuggestionId, mode])
 
   useEffect(() => {
     return () => {
@@ -145,6 +320,24 @@ export const TranslatorView = () => {
 
     textarea.scrollTop = textarea.scrollHeight
   }, [outputText, isProcessing, mode])
+
+  const handleGrammarSpanEnter = useCallback((params: { id: number; element: HTMLSpanElement }) => {
+    const container = grammarOutputRef.current
+    if (!container) {
+      return
+    }
+    const containerRect = container.getBoundingClientRect()
+    const spanRect = params.element.getBoundingClientRect()
+    setGrammarPopover({
+      id: params.id,
+      top: spanRect.bottom - containerRect.top + 10,
+      left: Math.max(12, spanRect.left - containerRect.left),
+    })
+  }, [])
+
+  const handleGrammarSpanLeave = useCallback(() => {
+    setGrammarPopover(null)
+  }, [])
 
   const sortedProviders = useMemo(() => {
     return (providers ?? []).slice().sort((a, b) => {
@@ -734,9 +927,15 @@ export const TranslatorView = () => {
               placeholder="Escribe, pega o importa tu texto aquí…"
               rows={14}
               value={inputText}
+              ref={inputTextareaRef}
               onChange={handleInputChange}
               disabled={isProcessing}
-              className="bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+              className={[
+                'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500',
+                mode === 'grammar'
+                  ? 'selection:bg-emerald-200/70 selection:text-slate-900 dark:selection:bg-emerald-500/20 dark:selection:text-slate-50'
+                  : '',
+              ].join(' ')}
               helperText={
                 charError
                   ? undefined
@@ -816,19 +1015,60 @@ export const TranslatorView = () => {
               </div>
 
             <div className="relative">
-              <Textarea
-                placeholder="Aquí verás la traducción, corrección gramatical o postedición."
-                rows={14}
-                value={outputText}
-                ref={outputTextareaRef}
-                onChange={(event) => {
-                  if (mode === 'post-editing') {
-                    setOutputText(event.target.value)
-                  }
-                }}
-                readOnly={mode !== 'post-editing' || isProcessing}
-                className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
-              />
+              {mode === 'grammar' ? (
+                <div
+                  className="min-h-[350px] rounded-lg border border-gray-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                  aria-label="Texto corregido"
+                >
+                  <div ref={grammarOutputRef} className="relative whitespace-pre-wrap break-words">
+                    {renderHighlightedText(
+                      outputText,
+                      grammarHighlightSpans,
+                      hoveredGrammarSuggestionId,
+                      setHoveredGrammarSuggestionId,
+                      handleGrammarSpanEnter,
+                      handleGrammarSpanLeave,
+                    )}
+                    {grammarPopover && grammarSuggestions[grammarPopover.id] && (
+                      <div
+                        className="pointer-events-none absolute z-10 w-[280px] rounded-xl border border-gray-200 bg-white p-3 text-sm text-slate-800 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                        style={{ top: grammarPopover.top, left: grammarPopover.left }}
+                        role="tooltip"
+                      >
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Posición: {grammarSuggestions[grammarPopover.id]!.position}
+                        </p>
+                        <p className="mt-2">
+                          <span className="font-semibold">Original:</span> {grammarSuggestions[grammarPopover.id]!.original}
+                        </p>
+                        <p className="mt-1">
+                          <span className="font-semibold">Corrección:</span>{' '}
+                          {grammarSuggestions[grammarPopover.id]!.correction}
+                        </p>
+                        {grammarSuggestions[grammarPopover.id]!.explanation && (
+                          <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                            {grammarSuggestions[grammarPopover.id]!.explanation}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <Textarea
+                  placeholder="Aquí verás la traducción, corrección gramatical o postedición."
+                  rows={14}
+                  value={outputText}
+                  ref={outputTextareaRef}
+                  onChange={(event) => {
+                    if (mode === 'post-editing') {
+                      setOutputText(event.target.value)
+                    }
+                  }}
+                  readOnly={mode !== 'post-editing' || isProcessing}
+                  className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+                />
+              )}
               {isProcessing && (mode !== 'translate' || outputText.trim().length === 0) && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
                   <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
@@ -839,35 +1079,10 @@ export const TranslatorView = () => {
             </div>
 
             {mode === 'grammar' && (
-              <div className="space-y-3">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {grammarHasErrors ? 'Se detectaron sugerencias.' : 'No se detectaron errores.'}
-                </div>
-                {grammarSuggestions.length > 0 && (
-                  <div className="rounded-xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-                    <p className="text-sm font-semibold text-bsc-blue-dark dark:text-white">Sugerencias</p>
-                    <ul className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-2 text-sm text-slate-700 dark:text-slate-200">
-                      {grammarSuggestions.slice(0, 50).map((item, index) => (
-                        <li key={`${item.position}-${index}`} className="rounded-lg bg-white p-3 shadow-sm dark:bg-slate-900">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                            <span>Posición: {item.position}</span>
-                          </div>
-                          <p className="mt-1">
-                            <span className="font-semibold">Original:</span> {item.original}
-                          </p>
-                          <p className="mt-1">
-                            <span className="font-semibold">Corrección:</span> {item.correction}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                    {grammarSuggestions.length > 50 && (
-                      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                        Mostrando 50 de {grammarSuggestions.length} sugerencias.
-                      </p>
-                    )}
-                  </div>
-                )}
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {grammarHasErrors
+                  ? 'Se detectaron sugerencias. Pasa el mouse por el texto subrayado para ver detalles.'
+                  : 'No se detectaron errores.'}
               </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
