@@ -237,13 +237,15 @@ export const ProviderFormModal = ({
     })
   }
 
+  const submitButtonText = isEdit ? 'Guardar cambios' : 'Crear proveedor'
+
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancelar
       </Button>
       <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear proveedor'}
+        {isSubmitting ? 'Guardando…' : submitButtonText}
       </Button>
     </>
   )
@@ -283,7 +285,7 @@ export const ProviderFormModal = ({
           disabled={isSubmitting}
         />
         <Textarea
-          className="md:col-span-2 min-h-[160px] font-mono text-xs"
+          className="md:col-span-2 min-h-40 font-mono text-xs"
           label="Configuración (JSON)"
           value={configRaw}
           onChange={(e) => setConfigRaw(e.target.value)}
@@ -300,7 +302,7 @@ export const ProviderFormModal = ({
           </p>
         </div>
         {languagesError && (
-          <Alert variant="danger" title="No pudimos cargar los idiomas" description={(languagesError as Error).message} />
+          <Alert variant="danger" title="No pudimos cargar los idiomas" description={(languagesError).message} />
         )}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
