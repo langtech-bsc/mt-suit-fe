@@ -37,6 +37,15 @@ export function LanguageSelector({ label, selectedCode, onChange, excludeCode, a
             disabled: lang.isoCode === excludeCode,
         }));
 
+    let helperText: string | undefined;
+    if (isLoading) {
+        helperText = 'Cargando idiomas…';
+    } else if (error) {
+        helperText = error.message;
+    } else {
+        helperText = undefined;
+    }
+
     return (
         <Select
             label={label}
@@ -44,7 +53,7 @@ export function LanguageSelector({ label, selectedCode, onChange, excludeCode, a
             onChange={(e) => onChange(e.target.value)}
             options={options}
             disabled={options.length === 0}
-            helperText={isLoading ? 'Cargando idiomas…' : error ? error.message : undefined}
+            helperText={helperText}
         />
     );
 }

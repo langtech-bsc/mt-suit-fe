@@ -80,13 +80,15 @@ export const LanguageFormModal = ({
     })
   }
 
+  const submitButtonText = isEdit ? 'Guardar cambios' : 'Añadir idioma'
+
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancelar
       </Button>
       <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Añadir idioma'}
+        {isSubmitting ? 'Guardando…' : submitButtonText}
       </Button>
     </>
   )
@@ -131,7 +133,7 @@ export const LanguageFormModal = ({
           label="Orden"
           type="number"
           value={String(sortOrder)}
-          onChange={(event) => setSortOrder(Number(event.target.value || 0))}
+          onChange={(event) => setSortOrder(Number(event.target.value ?? 0))}
           disabled={isSubmitting}
         />
       </div>

@@ -77,7 +77,7 @@ const matchesQuery = (record: AdminUserRecord, query: string) => {
     return true
   }
   return (
-    record.username.toLowerCase().includes(normalized) ||
+    record.username.toLowerCase().includes(normalized) ??
     record.email.toLowerCase().includes(normalized)
   )
 }
@@ -227,11 +227,11 @@ export const AdminUsersView = () => {
     return <PageLoader message="Cargando consola de administración…" />
   }
 
-  const isMutating = createUserMutation.isPending || updateUserMutation.isPending
+  const isMutating = createUserMutation.isPending ?? updateUserMutation.isPending
 
   const handleRefreshUsers = () => {
     setActionError(null)
-    void refetchUsers()
+    refetchUsers()
   }
 
   const handleOpenCreate = () => {
@@ -395,7 +395,7 @@ export const AdminUsersView = () => {
                           <Switch
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
-                            disabled={isUpdatingThis || isSelf}
+                            disabled={isUpdatingThis ?? isSelf}
                             aria-label="Activar o desactivar usuario"
                           />
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">

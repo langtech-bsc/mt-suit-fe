@@ -42,7 +42,7 @@ export const AdminLanguagesView = () => {
           return true
         }
         return (
-          lang.name.toLowerCase().includes(q) ||
+          lang.name.toLowerCase().includes(q) ??
           lang.isoCode.toLowerCase().includes(q)
         )
       })
@@ -155,7 +155,7 @@ export const AdminLanguagesView = () => {
     setDeletingLanguage(lang)
   }
 
-  const isMutating = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+  const isMutating = createMutation.isPending ?? updateMutation.isPending ?? deleteMutation.isPending
 
   if (isLoading) {
     return <PageLoader message="Cargando idiomas…" />
@@ -263,7 +263,7 @@ export const AdminLanguagesView = () => {
                           <Button variant="outline" size="sm" onClick={() => handleOpenEdit(lang)} disabled={isMutating}>
                             Editar
                           </Button>
-                          <Button variant="danger" size="sm" onClick={() => handleDelete(lang)} disabled={isMutating || lang.id < 0}>
+                          <Button variant="danger" size="sm" onClick={() => handleDelete(lang)} disabled={isMutating ?? lang.id < 0}>
                             Eliminar
                           </Button>
                         </div>

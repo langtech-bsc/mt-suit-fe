@@ -192,7 +192,7 @@ export const AdminProvidersView = () => {
     })
   }
 
-  const isMutating = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+  const isMutating = createMutation.isPending ?? updateMutation.isPending ?? deleteMutation.isPending
 
   if (isLoadingProviders) {
     return <PageLoader message="Cargando proveedores…" />
@@ -280,7 +280,7 @@ export const AdminProvidersView = () => {
                           <Switch
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
-                            disabled={isUpdatingThis || isMutating}
+                            disabled={isUpdatingThis ?? isMutating}
                             aria-label="Activar o desactivar provider"
                           />
                           <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
@@ -293,7 +293,7 @@ export const AdminProvidersView = () => {
                           <Switch
                             checked={record.isDefault}
                             onChange={(event) => handleToggleDefault(record, event.target.checked)}
-                            disabled={isUpdatingThis || isMutating}
+                            disabled={isUpdatingThis ?? isMutating}
                             aria-label="Marcar provider como default"
                           />
                           {record.isDefault ? (

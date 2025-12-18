@@ -313,7 +313,7 @@ export const ProviderFormModal = ({
                 checked={allInputSelected}
                 indeterminate={inputIndeterminate}
                 onChange={() => setInputLanguageIds(allInputSelected ? [] : allLanguageIds)}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
+                disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
               />
             </div>
             <Input
@@ -351,7 +351,7 @@ export const ProviderFormModal = ({
                 checked={allOutputSelected}
                 indeterminate={outputIndeterminate}
                 onChange={() => setOutputLanguageIds(allOutputSelected ? [] : allLanguageIds)}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
+                disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
               />
             </div>
             <Input

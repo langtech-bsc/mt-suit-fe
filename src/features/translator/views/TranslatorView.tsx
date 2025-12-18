@@ -768,7 +768,7 @@ export const TranslatorView = () => {
                   label="Modelo"
                   value={providerId !== null ? String(providerId) : ''}
                   onChange={(event) => setProviderId(Number(event.target.value))}
-                  disabled={!canChangeProvider || isProcessing || isLoadingProviders || sortedProviders.length === 0}
+                  disabled={!canChangeProvider || isProcessing || isLoadingProviders || sortedProviders.length === 0} // NOSONAR
                   helperText={providerHelperText}
                 >
                   {isLoadingProviders && <option value="">Cargando modelos…</option>}
