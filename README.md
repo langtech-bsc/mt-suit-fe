@@ -92,4 +92,9 @@ src/
 
 ---
 
+## 📚 Documentación de features
+
+- Idiomas soportados (integración UI + módulos): `src/features/languages/LANGUAGES.md`
+- Providers: pares de traducción (idiomas origen/destino): `src/features/providers/PROVIDER_LANGUAGE_PAIRS.md`
+
 Mantengamos el código alineado con las reglas de SonarQube: tipado estricto, separación de responsabilidades y sin datos sensibles en el cliente. 💙
