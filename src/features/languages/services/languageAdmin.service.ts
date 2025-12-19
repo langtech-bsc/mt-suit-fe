@@ -55,7 +55,7 @@ class LanguageAdminService {
       const { data } = await apiClient.post<LanguageApiResponse>(LANGUAGES_BASE_PATH, body)
       return mapLanguage(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos crear el idioma.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 
@@ -70,7 +70,7 @@ class LanguageAdminService {
       const { data } = await apiClient.put<LanguageApiResponse>(`${LANGUAGES_BASE_PATH}/${id}`, body)
       return mapLanguage(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el idioma.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 
@@ -78,7 +78,7 @@ class LanguageAdminService {
     try {
       await apiClient.delete(`${LANGUAGES_BASE_PATH}/${id}`)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos eliminar el idioma.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 }

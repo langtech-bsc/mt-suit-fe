@@ -229,6 +229,7 @@ export const AdminUsersView = () => {
           queryClient.setQueryData(key, data)
         }
       }
+      
       setActionError(error.message)
     },
     onSuccess: (updated, variables) => {
@@ -401,6 +402,7 @@ export const AdminUsersView = () => {
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredUsers.map((record) => {
                   const isUpdatingThis = updateUserMutation.isPending && updateUserMutation.variables?.userId === record.id
+                  
                   const isSelf = record.id === Number(user.id)
                   return (
                     <tr
@@ -416,7 +418,7 @@ export const AdminUsersView = () => {
                           <Switch
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
-                            disabled={isUpdatingThis ?? isSelf}
+                            disabled={isSelf ?? isUpdatingThis}
                             aria-label="Activar o desactivar usuario"
                           />
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">

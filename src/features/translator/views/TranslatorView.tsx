@@ -662,9 +662,9 @@ function TextPanelsSection(props: Readonly<{
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-          <span>
-            Estado: <strong className="font-semibold">{props.statusTitle ?? 'Pendiente'}</strong>
-          </span>
+          {/* <span>
+            Estado: <strong className="font-bold">{props.statusTitle ?? 'Pendiente'}</strong>
+          </span> */}
           <Button type="button" variant="ghost" size="sm" onClick={props.onClearResult} disabled={props.isClearResultDisabled}>
             Vaciar panel
           </Button>

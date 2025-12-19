@@ -8,19 +8,30 @@ type BackendErrorPayload = {
 
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (!axios.isAxiosError(error)) {
-    return error instanceof Error ? error.message : fallback
+    return error instanceof Error ? error.message : fallback || 'Error desconocido.'
   }
 
-  const responseData = error.response?.data as BackendErrorPayload | undefined
-  const detail = responseData?.detail ?? responseData?.message ?? responseData?.error
+  const responseData = error.response?.data as BackendErrorPayload | string | undefined
+  if (typeof responseData === 'string' && responseData.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(responseData) as BackendErrorPayload
+      const parsedDetail = parsed?.detail ?? parsed?.message ?? parsed?.error
+      if (typeof parsedDetail === 'string' && parsedDetail.trim().length > 0) {
+        return parsedDetail
+      }
+    } catch {
+      // ignore parse failures and use string as-is
+    }
+    return responseData
+  }
+
+  const responseObject: BackendErrorPayload | undefined =
+    responseData && typeof responseData === 'object' ? responseData : undefined
+
+  const detail = responseObject?.detail ?? responseObject?.message ?? responseObject?.error
   if (typeof detail === 'string' && detail.trim().length > 0) {
     return detail
   }
 
-  if (typeof error.message === 'string' && error.message.trim().length > 0) {
-    return error.message
-  }
-
-  return fallback
+  return fallback || 'Error desconocido.'
 }
-

@@ -74,7 +74,7 @@ class AuthService {
       const { data } = await apiClient.post<LoginApiResponse>(`${AUTH_BASE_PATH}/login`, credentials)
       return mapLoginResponse(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos iniciar sesión.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 

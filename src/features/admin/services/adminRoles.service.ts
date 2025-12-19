@@ -60,7 +60,7 @@ class AdminRolesService {
         role_id: payload.roleId,
       })
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el rol del usuario.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 }
