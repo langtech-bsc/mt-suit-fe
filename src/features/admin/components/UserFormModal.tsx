@@ -22,7 +22,7 @@ const editSchema = z.object({
   email: z.email('Ingresa un email válido.'),
   password: z.string().optional(),
   isActive: z.boolean(),
-  role: z.string().optional(),
+  role: z.string().min(1, 'Selecciona un rol.'),
   isSuperuser: z.boolean().optional(),
 })
 
@@ -65,13 +65,13 @@ export const UserFormModal = ({
   }, [isEdit, user, currentUserLogged])
   const defaultEditRole = useMemo(() => {
     if (!user) {
-      return 'all'
+      return roleOptions[0] ?? ''
     }
     const candidate = user.roles[0]?.name
     if (!candidate) {
-      return 'all'
+      return roleOptions[0] ?? ''
     }
-    return roleOptions.includes(candidate) ? candidate : 'all'
+    return roleOptions.includes(candidate) ? candidate : (roleOptions[0] ?? '')
   }, [user, roleOptions])
 
   const createForm = useForm<CreateUserInput>({
@@ -135,6 +135,7 @@ export const UserFormModal = ({
     }
     
     const isCreateDisabled = !isEdit && !hasRoleOptions
+    const isEditDisabled = isEdit && !hasRoleOptions
 
     const footer = (
     <>
@@ -144,7 +145,7 @@ export const UserFormModal = ({
       <Button
         variant="primary"
         onClick={isEdit ? handleSubmitEdit : handleSubmitCreate}
-        disabled={isSubmitting || isCreateDisabled}
+        disabled={isSubmitting || isCreateDisabled || isEditDisabled}
       >
         {buttonText}
       </Button>
@@ -165,6 +166,13 @@ export const UserFormModal = ({
           variant="warning"
           title="Sin roles disponibles"
           description="No hay roles cargados para asignar. Refresca la vista o crea roles antes de crear usuarios."
+        />
+      )}
+      {isEdit && !hasRoleOptions && (
+        <Alert
+          variant="warning"
+          title="Sin roles disponibles"
+          description="No hay roles cargados para asignar. Refresca la vista antes de editar usuarios."
         />
       )}
 
@@ -208,12 +216,11 @@ export const UserFormModal = ({
             <div className="w-full sm:w-64">
               <Select
                 label="Rol"
-                value={editForm.watch('role') ?? 'all'}
+                value={editForm.watch('role') ?? ''}
                 onChange={(event) => editForm.setValue('role', event.target.value)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !hasRoleOptions}
                 helperText="Se asigna vía endpoint de roles."
                 options={[
-                  { value: 'all', label: 'Sin rol' },
                   ...roleOptions.map((value) => ({ value, label: value })),
                 ]}
               />
