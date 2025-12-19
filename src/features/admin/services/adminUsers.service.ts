@@ -107,6 +107,14 @@ class AdminUsersService {
       throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
+
+  async remove(userId: number): Promise<void> {
+    try {
+      await apiClient.delete(`${USERS_BASE_PATH}/${userId}`)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
+    }
+  }
 }
 
 export const adminUsersService = new AdminUsersService()

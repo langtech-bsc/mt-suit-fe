@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Badge, Button, Card, PageLoader, Switch } from '../../../components/ui'
+import { Alert, Badge, Button, Card, ConfirmDialog, PageLoader, Switch } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
 import { adminRolesService } from '../services/adminRoles.service'
 import { adminUsersService } from '../services/adminUsers.service'
@@ -94,7 +94,9 @@ export const AdminUsersView = () => {
   })
   const [createOpen, setCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null)
+  const [deletingUser, setDeletingUser] = useState<AdminUserRecord | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionFeedback, setActionFeedback] = useState<{ variant: 'success' | 'danger'; message: string } | null>(null)
 
   const pagination = useMemo(
     () => ({
@@ -172,6 +174,18 @@ export const AdminUsersView = () => {
     )
   }
 
+  const removeCachedUser = (userId: number) => {
+    queryClient.setQueriesData<{ data: AdminUserRecord[]; skip: number; limit: number }>(
+      { queryKey: ['admin-users'] },
+      (previous) => {
+        if (!previous) {
+          return previous
+        }
+        return { ...previous, data: previous.data.filter((record) => record.id !== userId) }
+      },
+    )
+  }
+
   const createUserMutation = useMutation<AdminUserRecord, Error, CreateUserInput>({
     mutationFn: async (payload) => {
       const { role, ...createPayload } = payload
@@ -189,6 +203,7 @@ export const AdminUsersView = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       setCreateOpen(false)
+      setActionFeedback({ variant: 'success', message: 'Usuario creado correctamente.' })
     },
     onError: (error) => {
       setActionError(error.message)
@@ -236,9 +251,26 @@ export const AdminUsersView = () => {
       const previousUser = users.find((item) => item.id === variables.userId)
       updateCachedUser(updated, previousUser?.roles)
       setEditingUser(null)
+      setActionFeedback({ variant: 'success', message: 'Usuario actualizado correctamente.' })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+  })
+
+  const deleteUserMutation = useMutation<void, Error, number>({
+    mutationFn: (userId) => adminUsersService.remove(userId),
+    onSuccess: (_, userId) => {
+      removeCachedUser(userId)
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      if (deletingUser) {
+        setActionFeedback({ variant: 'success', message: `Usuario "${deletingUser.username}" eliminado.` })
+      }
+      setDeletingUser(null)
+    },
+    onError: (error) => {
+      setActionFeedback({ variant: 'danger', message: error.message })
+      setDeletingUser(null)
     },
   })
 
@@ -246,15 +278,17 @@ export const AdminUsersView = () => {
     return <PageLoader message="Cargando consola de administración…" />
   }
 
-  const isMutating = createUserMutation.isPending ?? updateUserMutation.isPending
+  const isMutating = createUserMutation.isPending ?? updateUserMutation.isPending ?? deleteUserMutation.isPending
 
   const handleRefreshUsers = () => {
     setActionError(null)
+    setActionFeedback(null)
     refetchUsers()
   }
 
   const handleOpenCreate = () => {
     setActionError(null)
+    setActionFeedback(null)
     createUserMutation.reset()
     setCreateOpen(true)
   }
@@ -266,6 +300,7 @@ export const AdminUsersView = () => {
 
   const handleOpenEdit = (record: AdminUserRecord) => {
     setActionError(null)
+    setActionFeedback(null)
     updateUserMutation.reset()
     setEditingUser(record)
   }
@@ -277,12 +312,14 @@ export const AdminUsersView = () => {
 
   const handleCreate = (payload: CreateUserInput) => {
     setActionError(null)
+    setActionFeedback(null)
     createUserMutation.mutate(payload)
   }
 
   const handleEdit = (userId: number, payload: EditUserInput) => {
     const password = payload.password?.trim() ? payload.password : undefined
     setActionError(null)
+    setActionFeedback(null)
 
     const currentUser = users.find((candidate) => candidate.id === userId)
     const currentRoleName = currentUser?.roles[0]?.name ?? ''
@@ -315,6 +352,7 @@ export const AdminUsersView = () => {
       return
     }
     setActionError(null)
+    setActionFeedback(null)
     updateUserMutation.mutate({
       userId: record.id,
       payload: {
@@ -323,6 +361,22 @@ export const AdminUsersView = () => {
         is_active: nextActive,
       },
     })
+  }
+
+  const handleRequestDelete = (record: AdminUserRecord) => {
+    if (record.id === Number(user?.id)) {
+      return
+    }
+    setActionError(null)
+    setActionFeedback(null)
+    setDeletingUser(record)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deletingUser) {
+      return
+    }
+    deleteUserMutation.mutate(deletingUser.id)
   }
 
   return (
@@ -349,6 +403,13 @@ export const AdminUsersView = () => {
 
       <UsersFilters state={filters} roleOptions={roleOptions} onChange={setFilters} />
 
+      {actionFeedback && (
+        <Alert
+          variant={actionFeedback.variant === 'success' ? 'success' : 'danger'}
+          title={actionFeedback.variant === 'success' ? 'Listo' : 'Error'}
+          description={actionFeedback.message}
+        />
+      )}
       {actionError && <Alert variant="danger" title="Acción fallida" description={actionError} />}
       {usersErrorMessage && (
         <Alert variant="danger" title="No pudimos obtener la lista" description={usersErrorMessage} />
@@ -418,7 +479,7 @@ export const AdminUsersView = () => {
                           <Switch
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
-                            disabled={isSelf ?? isUpdatingThis}
+                            disabled={isUpdatingThis || isSelf}
                             aria-label="Activar o desactivar usuario"
                           />
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
@@ -453,9 +514,19 @@ export const AdminUsersView = () => {
                           {formatDateTime(record.updatedAt)}
                         </td>
                         <td className="px-4 py-3">
-                          <Button variant="outline" size="sm" onClick={() => handleOpenEdit(record)} disabled={isMutating}>
-                            Editar
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenEdit(record)} disabled={isMutating}>
+                              Editar
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleRequestDelete(record)}
+                              disabled={isMutating || isSelf}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -466,6 +537,19 @@ export const AdminUsersView = () => {
           )
         })()}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(deletingUser)}
+        title="Eliminar usuario"
+        description={
+          deletingUser ? `¿Seguro que deseas eliminar a "${deletingUser.username}"? Esta acción no se puede deshacer.` : undefined
+        }
+        confirmLabel="Eliminar"
+        variant="danger"
+        isConfirming={deleteUserMutation.isPending}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeletingUser(null)}
+      />
 
       <UserFormModal
         open={createOpen}
