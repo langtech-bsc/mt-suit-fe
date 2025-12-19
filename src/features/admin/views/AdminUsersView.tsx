@@ -44,7 +44,7 @@ const applyOptimisticUserUpdate = (
   previous: { data: AdminUserRecord[]; skip: number; limit: number } | undefined,
   variables: {
     userId: number
-    payload: { username: string; email: string; is_active: boolean; password?: string }
+    payload: { username: string; email: string; is_active: boolean; password?: string; is_superuser?: boolean }
     roleId?: number
     roleName?: string
   },
@@ -65,6 +65,7 @@ const applyOptimisticUserUpdate = (
         username: payload.username,
         email: payload.email,
         isActive: payload.is_active,
+        isSuperuser: typeof payload.is_superuser === 'boolean' ? payload.is_superuser : existing.isSuperuser,
         roles: buildOptimisticRoles(existing.roles, roleId, roleName),
       }
     }),
@@ -172,7 +173,19 @@ export const AdminUsersView = () => {
   }
 
   const createUserMutation = useMutation<AdminUserRecord, Error, CreateUserInput>({
-    mutationFn: (payload) => adminUsersService.create(payload),
+    mutationFn: async (payload) => {
+      const { role, ...createPayload } = payload
+      const created = await adminUsersService.create(createPayload)
+
+      const roleName = role.trim()
+      const roleId = roleNameToId.get(roleName)
+      if (typeof roleId !== 'number') {
+        throw new Error('No pudimos identificar el rol seleccionado. Refresca la lista de roles e inténtalo de nuevo.')
+      }
+      await adminRolesService.assignRole({ userId: created.id, roleId })
+
+      return created
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       setCreateOpen(false)
@@ -185,7 +198,12 @@ export const AdminUsersView = () => {
   const updateUserMutation = useMutation<
     AdminUserRecord,
     Error,
-    { userId: number; payload: { username: string; email: string; is_active: boolean; password?: string }; roleId?: number; roleName?: string },
+    {
+      userId: number
+      payload: { username: string; email: string; is_active: boolean; password?: string; is_superuser?: boolean }
+      roleId?: number
+      roleName?: string
+    },
     { snapshot: Array<[readonly unknown[], unknown]> }
   >({
     mutationFn: async ({ userId, payload, roleId }) => {
@@ -275,6 +293,8 @@ export const AdminUsersView = () => {
       return
     }
 
+    const isSuperuserUpdate = nextRoleName === 'admin' ? Boolean(payload.isSuperuser) : undefined
+
     updateUserMutation.mutate({
       userId,
       payload: {
@@ -282,6 +302,7 @@ export const AdminUsersView = () => {
         email: payload.email,
         is_active: payload.isActive,
         password,
+        ...(typeof isSuperuserUpdate === 'boolean' ? { is_superuser: isSuperuserUpdate } : {}),
       },
       roleId,
       roleName: shouldAssignRole ? nextRoleName : undefined,

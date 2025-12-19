@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '../store/auth.store'
 
@@ -6,6 +6,19 @@ export const SessionManager = () => {
   const navigate = useNavigate()
   const session = useAuthStore((state) => state.session)
   const logout = useAuthStore((state) => state.logout)
+  const fetchProfile = useAuthStore((state) => state.fetchProfile)
+  const didRefreshProfileRef = useRef(false)
+
+  useEffect(() => {
+    if (!session || didRefreshProfileRef.current) {
+      return
+    }
+
+    didRefreshProfileRef.current = true
+    fetchProfile().catch(() => {
+      // El flujo de auth/interceptores maneja 401/403. Evitamos unhandled rejections aquí.
+    })
+  }, [session, fetchProfile])
 
   useEffect(() => {
     if (!session) {

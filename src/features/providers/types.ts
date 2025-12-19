@@ -20,6 +20,7 @@ export interface ProviderRecord {
   providerType: string
   endpoint: string
   region: string
+  apiKey: string
   inputLanguageIds: number[]
   outputLanguageIds: number[]
   isActive: boolean

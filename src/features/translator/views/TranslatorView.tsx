@@ -49,13 +49,14 @@ const MODE_CONFIG: Record<TranslatorMode, { label: string; description: string; 
   },
   'post-editing': {
     label: 'Post-Editing',
-    description: 'Refina la traducción pegada en el panel derecho para mejorar estilo y fluidez.',
+    description: 'Traduce y luego aplica Post-Editing sobre el panel de traducción para mejorar estilo y fluidez.',
     actionLabel: 'Traducir',
   },
 }
 
 type ExportFormat = (typeof EXPORT_FORMATS)[number]['value']
 type StatusState = { variant: 'info' | 'success' | 'warning' | 'danger'; title: string; description: string }
+type ProcessingTask = 'translate' | 'grammar' | 'post-edit' | null
 
 const buildMissingContentMessage = (mode: TranslatorMode) =>
   mode === 'post-editing'
@@ -225,10 +226,14 @@ export const TranslatorView = () => {
   const [sourceLang, setSourceLang] = useState('es')
   const [targetLang, setTargetLang] = useState('en')
   const [inputText, setInputText] = useState('')
+  const [translationText, setTranslationText] = useState('')
+  const [postEditText, setPostEditText] = useState('')
+  const [postEditTouched, setPostEditTouched] = useState(false)
   const [outputText, setOutputText] = useState('')
   const [status, setStatus] = useState<StatusState | null>(null)
   const [charError, setCharError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingTask, setProcessingTask] = useState<ProcessingTask>(null)
   const [exportFormat, setExportFormat] = useState<ExportFormat>('txt')
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -239,6 +244,7 @@ export const TranslatorView = () => {
   const [postEditLength, setPostEditLength] = useState<PostEditLength>('original')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const inputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const postEditTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const outputTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const grammarOutputRef = useRef<HTMLDivElement | null>(null)
   const translateAbortRef = useRef<AbortController | null>(null)
@@ -248,10 +254,12 @@ export const TranslatorView = () => {
   const activeConfig = useMemo(() => MODE_CONFIG[mode], [mode])
   const inputCharacters = inputText.length
   const canTranslateInput = computeCanProcess({ mode: 'translate', inputText, outputText, charError })
-  const canPostEditOutput = outputText.trim().length > 0
-  const isExportDisabled = outputText.trim().length === 0 || isProcessing
+  const canPostEditText = postEditText.trim().length > 0
+  const exportSourceText = mode === 'post-editing' ? postEditText : outputText
+  const isExportDisabled = exportSourceText.trim().length === 0 || isProcessing
   const providerHelperText = getProviderHelperText({ canChangeProvider, providersError })
   const selectedProviderId = typeof providerId === 'number' ? providerId : undefined
+  const lockControls = isProcessing && mode !== 'translate'
   const grammarHighlightSpans = useMemo(
     () => buildHighlightSpans(outputText, grammarSuggestions, ['correction', 'original']),
     [grammarSuggestions, outputText],
@@ -265,7 +273,7 @@ export const TranslatorView = () => {
       return undefined
     }
     if (mode === 'post-editing') {
-      return 'Puedes seguir traduciendo desde este panel; el Post-Editing se aplica sobre el texto del panel derecho.'
+      return 'Traduce desde este panel. La traducción aparecerá a la derecha y podrás mejorarla abajo con Post-Editing.'
     }
     return 'Este texto alimenta los modos Translate y Grammar Checker.'
   }, [charError, mode])
@@ -281,6 +289,9 @@ export const TranslatorView = () => {
 
   useEffect(() => {
     setOutputText('')
+    setTranslationText('')
+    setPostEditText('')
+    setPostEditTouched(false)
     setStatus(null)
     setGrammarSuggestions([])
     setGrammarHasErrors(false)
@@ -288,6 +299,17 @@ export const TranslatorView = () => {
     setGrammarPopover(null)
   }, [mode])
 
+  useEffect(() => {
+    if (mode !== 'post-editing') {
+      return
+    }
+
+    if (postEditTouched) {
+      return
+    }
+
+    setPostEditText(translationText)
+  }, [mode, postEditTouched, translationText])
 
 
   useEffect(() => {
@@ -298,7 +320,7 @@ export const TranslatorView = () => {
   }, [])
 
   useEffect(() => {
-    if (!isProcessing || mode !== 'translate') {
+    if (!isProcessing || processingTask !== 'translate') {
       return
     }
 
@@ -308,7 +330,7 @@ export const TranslatorView = () => {
     }
 
     textarea.scrollTop = textarea.scrollHeight
-  }, [outputText, isProcessing, mode])
+  }, [outputText, translationText, isProcessing, mode, processingTask])
 
   const handleGrammarSpanEnter = useCallback((params: { id: number; element: HTMLElement }) => {
     const container = grammarOutputRef.current
@@ -485,11 +507,15 @@ export const TranslatorView = () => {
         providerId: selectedProviderId,
       },
       (_delta, fullText) => {
-        setOutputText(fullText)
+        if (mode === 'post-editing') {
+          setTranslationText(fullText)
+        } else {
+          setOutputText(fullText)
+        }
       },
       { signal: abortController.signal },
     )
-  }, [inputText, selectedProviderId, sourceLang, targetLang])
+  }, [inputText, mode, selectedProviderId, sourceLang, targetLang])
 
   const performGrammar = useCallback(async () => {
     const payload = await requestGrammarCheckDetailed({
@@ -551,8 +577,15 @@ export const TranslatorView = () => {
     }
 
     setIsProcessing(true)
+    setProcessingTask(mode === 'grammar' ? 'grammar' : 'translate')
     if (isTranslateLikeMode) {
-      setOutputText('')
+      if (mode === 'post-editing') {
+        setTranslationText('')
+        setPostEditText('')
+        setPostEditTouched(false)
+      } else {
+        setOutputText('')
+      }
     }
     if (isManual) {
       setStatus({
@@ -566,12 +599,16 @@ export const TranslatorView = () => {
       const run = modeRunner[mode]
       const result = await run()
 
-      setOutputText(result)
+      if (mode === 'post-editing') {
+        setTranslationText(result)
+      } else {
+        setOutputText(result)
+      }
       if (isManual) {
         setStatus({
           variant: 'success',
           title: 'Listo',
-          description: `${activeConfig.label} completado correctamente.`,
+          description: mode === 'post-editing' ? 'Traducción completada correctamente.' : `${activeConfig.label} completado correctamente.`,
         })
       }
     } catch (error) {
@@ -587,6 +624,7 @@ export const TranslatorView = () => {
     } finally {
       translateAbortRef.current = null
       setIsProcessing(false)
+      setProcessingTask(null)
     }
   }, [activeConfig.actionLabel, activeConfig.label, canTranslateInput, manualMissingMessage, mode, modeRunner])
 
@@ -603,16 +641,17 @@ export const TranslatorView = () => {
       return
     }
 
-    if (!canPostEditOutput) {
+    if (!canPostEditText) {
       setStatus({
         variant: 'warning',
         title: 'Falta contenido',
-        description: 'Primero traduce o pega un texto en el panel derecho para aplicar Post-Editing.',
+        description: 'Primero traduce o pega un texto en el editor de Post-Editing para aplicar mejoras.',
       })
       return
     }
 
     setIsProcessing(true)
+    setProcessingTask('post-edit')
     setStatus({
       variant: 'info',
       title: 'Mejorando traducción',
@@ -620,9 +659,10 @@ export const TranslatorView = () => {
     })
 
     try {
-      const sourceText = outputText.trim()
+      const sourceText = postEditText.trim()
       const result = await performPostEdit(sourceText)
-      setOutputText(result)
+      setPostEditText(result)
+      setPostEditTouched(true)
       setStatus({
         variant: 'success',
         title: 'Listo',
@@ -640,8 +680,9 @@ export const TranslatorView = () => {
       })
     } finally {
       setIsProcessing(false)
+      setProcessingTask(null)
     }
-  }, [canPostEditOutput, isProcessing, outputText, performPostEdit])
+  }, [canPostEditText, isProcessing, performPostEdit, postEditText])
 
   useEffect(() => {
     if (mode !== 'translate') {
@@ -676,7 +717,8 @@ export const TranslatorView = () => {
 
   const handleExport = async () => {
     if (isExportDisabled) return
-    const text = outputText.trim()
+    const exportSource = mode === 'post-editing' ? postEditText : outputText
+    const text = exportSource.trim()
     if (!text) return
 
     if (exportFormat === 'txt') {
@@ -709,10 +751,29 @@ export const TranslatorView = () => {
   }
 
   const handleClearResult = () => {
+    if (mode === 'post-editing') {
+      setTranslationText('')
+      setPostEditText('')
+      setPostEditTouched(false)
+      return
+    }
     setOutputText('')
   }
 
+  const handleCancelTranslation = () => {
+    translateAbortRef.current?.abort()
+    translateAbortRef.current = null
+    setIsProcessing(false)
+    setProcessingTask(null)
+    setStatus({
+      variant: 'warning',
+      title: 'Cancelado',
+      description: 'La traducción en curso fue cancelada.',
+    })
+  }
+
   const fileButtonText = getFileButtonText(uploadedFileName)
+  const isClearResultDisabled = mode === 'post-editing' ? (!translationText && !postEditText) || isProcessing : !outputText || isProcessing
 
   return (
     <div className="flex min-h-screen flex-col bg-linear-to-b from-white via-blue-50/40 to-blue-100/20 px-4 py-8 text-slate-900 dark:bg-linear-to-b dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50 sm:px-6 lg:px-10">
@@ -768,7 +829,7 @@ export const TranslatorView = () => {
                   label="Modelo"
                   value={providerId !== null ? String(providerId) : ''}
                   onChange={(event) => setProviderId(Number(event.target.value))}
-                  disabled={!canChangeProvider || isProcessing || isLoadingProviders || sortedProviders.length === 0} // NOSONAR
+                  disabled={!canChangeProvider || lockControls || isLoadingProviders || sortedProviders.length === 0} // NOSONAR
                   helperText={providerHelperText}
                 >
                   {isLoadingProviders && <option value="">Cargando modelos…</option>}
@@ -818,7 +879,7 @@ export const TranslatorView = () => {
                   size="sm"
                   aria-label="Intercambiar idiomas"
                   onClick={handleSwapLanguages}
-                  disabled={isProcessing}
+                  disabled={lockControls}
                 >
                   <SwapIcon />
                 </Button>
@@ -849,31 +910,6 @@ export const TranslatorView = () => {
               </div>
             </div>
 
-            {mode === 'post-editing' && (
-              <div aria-hidden="true" className="pointer-events-none opacity-0">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Select
-                    label="Tono"
-                    value={postEditTone}
-                    onChange={() => {}}
-                    disabled
-                    options={POST_EDIT_TONES}
-                    className="bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                  />
-                  <Select
-                    label="Longitud"
-                    value={postEditLength}
-                    onChange={() => {}}
-                    disabled
-                    options={POST_EDIT_LENGTHS}
-                    className="bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                  />
-                </div>
-              </div>
-            )}
-
-            
-
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -881,25 +917,31 @@ export const TranslatorView = () => {
                   variant="secondary"
                   size="sm"
                   onClick={triggerFileDialog}
-                  disabled={isProcessing}
+                  disabled={lockControls}
                 >
                   {fileButtonText}
                 </Button>
                 
-                <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={isProcessing}>
+                <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={lockControls}>
                   Limpiar texto
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                {mode === 'translate' && isProcessing ? (
+                  <Button type="button" variant="danger" size="sm" onClick={handleCancelTranslation}>
+                    Cancelar
+                  </Button>
+                ) : (
                   <Button
                     type="button"
                     variant="primary"
                     size="sm"
                     onClick={handleProcess}
-                    disabled={!canTranslateInput || isProcessing}
+                    disabled={!canTranslateInput || lockControls}
                   >
                     {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
                   </Button>
+                )}
               
               </div>
             </div>
@@ -909,7 +951,7 @@ export const TranslatorView = () => {
               value={inputText}
               ref={inputTextareaRef}
               onChange={handleInputChange}
-              disabled={isProcessing}
+              disabled={lockControls}
               className={[
                 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500',
                 mode === 'grammar'
@@ -932,31 +974,14 @@ export const TranslatorView = () => {
           <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Resultado</h3>
+                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">
+                  {mode === 'post-editing' ? 'Traducción' : 'Resultado'}
+                </h3>
                 
               </div>
             </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {mode === 'post-editing' && (
-                  <>
-                    <Select
-                      label="Tono"
-                      value={postEditTone}
-                      onChange={(event) => setPostEditTone(event.target.value as PostEditTone)}
-                      disabled={isProcessing}
-                      options={POST_EDIT_TONES}
-                      className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                    />
-                    <Select
-                      label="Longitud"
-                      value={postEditLength}
-                      onChange={(event) => setPostEditLength(event.target.value as PostEditLength)}
-                      disabled={isProcessing}
-                      options={POST_EDIT_LENGTHS}
-                      className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                    />
-                  </>
-                )}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                 <div className='flex gap-3'>
 
                 <Select
@@ -974,18 +999,8 @@ export const TranslatorView = () => {
                   Exportar
                 </Button>
                 </div>
-                {mode === 'post-editing' && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handlePostEdit}
-                    disabled={!canPostEditOutput || isProcessing}
-                    className="sm:ml-auto"
-                  >
-                    {isProcessing ? 'Procesando…' : POST_EDITING_BUTTON_LABEL}
-                  </Button>
-                )}
+                </div>
+
               </div>
 
             <div className="relative">
@@ -1032,18 +1047,15 @@ export const TranslatorView = () => {
                 <Textarea
                   placeholder="Aquí verás la traducción, corrección gramatical o postedición."
                   rows={14}
-                  value={outputText}
+                  value={mode === 'post-editing' ? translationText : outputText}
                   ref={outputTextareaRef}
-                  onChange={(event) => {
-                    if (mode === 'post-editing') {
-                      setOutputText(event.target.value)
-                    }
-                  }}
-                  readOnly={mode !== 'post-editing' || isProcessing}
+                  readOnly
                   className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
                 />
               )}
-              {isProcessing && (mode !== 'translate' || outputText.trim().length === 0) && (
+              {((processingTask === 'translate' && mode === 'translate' && outputText.trim().length === 0) ||
+                (processingTask === 'translate' && mode === 'post-editing' && translationText.trim().length === 0) ||
+                (processingTask === 'grammar' && mode === 'grammar')) && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
                   <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
                     <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud…
@@ -1063,12 +1075,88 @@ export const TranslatorView = () => {
               <span>
                 Estado: <strong className="font-semibold">{status ? status.title : 'Pendiente'}</strong>
               </span>
-              <Button type="button" variant="ghost" size="sm" onClick={handleClearResult} disabled={!outputText || isProcessing}>
+              <Button type="button" variant="ghost" size="sm" onClick={handleClearResult} disabled={isClearResultDisabled}>
                 Vaciar panel
               </Button>
             </div>
           </Card>
         </section>
+
+        {mode === 'post-editing' && (
+          <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Post-Editing</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Edita la traducción y aplica mejoras de estilo, tono y longitud. El resultado se guarda en esta misma caja.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPostEditText(translationText)
+                  setPostEditTouched(false)
+                }}
+                disabled={!translationText || isProcessing}
+              >
+                Restablecer desde traducción
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-wrap gap-3">
+                <Select
+                  label="Tono"
+                  value={postEditTone}
+                  onChange={(event) => setPostEditTone(event.target.value as PostEditTone)}
+                  disabled={isProcessing}
+                  options={POST_EDIT_TONES}
+                  className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+                />
+                <Select
+                  label="Longitud"
+                  value={postEditLength}
+                  onChange={(event) => setPostEditLength(event.target.value as PostEditLength)}
+                  disabled={isProcessing}
+                  options={POST_EDIT_LENGTHS}
+                  className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handlePostEdit}
+                disabled={!canPostEditText || isProcessing}
+              >
+                {isProcessing ? 'Procesando…' : POST_EDITING_BUTTON_LABEL}
+              </Button>
+            </div>
+
+            <Textarea
+              placeholder="Aquí se editará el texto sobre el que aplicar Post-Editing…"
+              rows={12}
+              value={postEditText}
+              ref={postEditTextareaRef}
+              onChange={(event) => {
+                setPostEditText(event.target.value)
+                setPostEditTouched(true)
+              }}
+              disabled={isProcessing}
+              className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+            />
+
+            {processingTask === 'post-edit' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
+                <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />
+                  Procesando solicitud…
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
 
         <Card padding="lg" className="flex flex-col gap-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <Alert

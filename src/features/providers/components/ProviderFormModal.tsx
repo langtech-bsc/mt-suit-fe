@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
-import { Alert, Button, Checkbox, Input, Modal, Switch, Textarea } from '../../../components/ui'
+import { Alert, Button, Checkbox, Input, Modal, PasswordInput, Switch, Textarea } from '../../../components/ui'
 import { useLanguagesQuery } from '../../languages/queries/useLanguagesQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
 import type { ProviderConfiguration, ProviderCreateInput, ProviderRecord, ProviderUpdateInput } from '../types'
@@ -10,7 +10,10 @@ type Mode = 'create' | 'edit'
 const createSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.'),
   providerType: z.string().min(2, 'El tipo de proveedor es obligatorio.'),
-  endpoint: z.string().min(1, 'El endpoint es obligatorio.'),
+  endpoint: z
+    .string()
+    .trim()
+    .url('El endpoint debe ser una URL válida (incluye https://).'),
   region: z.string().optional(),
   inputLanguageIds: z.array(z.number()).min(1, 'Selecciona al menos un idioma de entrada.'),
   outputLanguageIds: z.array(z.number()).min(1, 'Selecciona al menos un idioma de salida.'),
@@ -21,7 +24,10 @@ const createSchema = z.object({
 
 const editSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.'),
-  endpoint: z.string().min(1, 'El endpoint es obligatorio.'),
+  endpoint: z
+    .string()
+    .trim()
+    .url('El endpoint debe ser una URL válida (incluye https://).'),
   region: z.string().optional(),
   apiKey: z.string().optional(),
   isActive: z.boolean(),
@@ -117,7 +123,7 @@ export const ProviderFormModal = ({
     setProviderType(provider?.providerType ?? '')
     setEndpoint(provider?.endpoint ?? '')
     setRegion(provider?.region ?? '')
-    setApiKey('')
+    setApiKey(provider?.apiKey ?? '')
     setConfigRaw(stringifyConfig(provider?.configuration ?? {}))
     setIsActive(provider?.isActive ?? true)
     setIsDefault(provider?.isDefault ?? false)
@@ -273,12 +279,18 @@ export const ProviderFormModal = ({
           disabled={isSubmitting || isEdit}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: openai, google'}
         />
-        <Input label="Endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} disabled={isSubmitting} />
-        <Input label="Región" value={region} onChange={(e) => setRegion(e.target.value)} disabled={isSubmitting} />
         <Input
+          label="Endpoint"
+          placeholder="https://api.example.com"
+          value={endpoint}
+          onChange={(e) => setEndpoint(e.target.value)}
+          disabled={isSubmitting}
+          helperText="Debe ser una URL válida (incluye https://)."
+        />
+        <Input label="Región" value={region} onChange={(e) => setRegion(e.target.value)} disabled={isSubmitting} />
+        <PasswordInput
           className="md:col-span-2"
           label={isEdit ? 'API key (opcional)' : 'API key'}
-          type="password"
           placeholder={isEdit ? 'Dejar vacío para mantener' : '••••••••'}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}

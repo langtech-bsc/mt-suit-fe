@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { authService } from '../services/auth.service'
 import type { AuthCredentials, AuthSession, AuthStatus, AuthUser } from '../types'
-import { AuthStorage } from '../utils/authStorage'
+import { AUTH_SESSION_EVENT, AuthStorage } from '../utils/authStorage'
 
 interface AuthStoreState {
   status: AuthStatus
@@ -113,3 +113,24 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ status: 'authenticated', session, user: session.user })
   },
 }))
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __bscAuthSessionListenerInstalled: boolean | undefined
+}
+
+if (typeof globalThis !== 'undefined' && !globalThis.__bscAuthSessionListenerInstalled) {
+  globalThis.__bscAuthSessionListenerInstalled = true
+
+  globalThis.addEventListener(AUTH_SESSION_EVENT, ((event: Event) => {
+    const customEvent = event as CustomEvent<AuthSession | null>
+    const session = customEvent.detail ?? null
+
+    if (!session) {
+      useAuthStore.setState({ status: 'idle', session: null, user: null })
+      return
+    }
+
+    useAuthStore.setState({ status: 'authenticated', session, user: session.user ?? null })
+  }) as EventListener)
+}

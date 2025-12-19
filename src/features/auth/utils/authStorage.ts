@@ -1,6 +1,7 @@
 import type { AuthSession } from '../types'
 
 const STORAGE_KEY = 'bsc.auth.session'
+const SESSION_EVENT = 'bsc.auth.session.updated'
 
 const safeParse = (value: string | null) => {
   if (!value) {
@@ -29,6 +30,12 @@ export const AuthStorage = {
     target.setItem(STORAGE_KEY, serialized)
     const secondary = session.rememberMe ? globalThis.sessionStorage : globalThis.localStorage
     removeFrom(secondary)
+
+    try {
+      globalThis.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session }))
+    } catch {
+      // noop
+    }
   },
   getSession(): AuthSession | null {
     if (typeof globalThis === 'undefined') {
@@ -42,5 +49,12 @@ export const AuthStorage = {
     }
     removeFrom(globalThis.localStorage)
     removeFrom(globalThis.sessionStorage)
+    try {
+      globalThis.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: null }))
+    } catch {
+      // noop
+    }
   },
 }
+
+export const AUTH_SESSION_EVENT = SESSION_EVENT
