@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, ReactNode } from 'react'
+import type { ChangeEvent, RefObject, ReactNode } from 'react'
 import { Document, Packer, Paragraph } from 'docx'
 import axios from 'axios'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { Alert, Button, Card, Select, Textarea } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
+import type { ProviderRecord } from '../../providers/types'
 import { useLanguagesStore } from '../../languages/store/languages.store'
 import { useGrammarHoverSelection } from '../hooks/useGrammarHoverSelection'
 import {
@@ -98,6 +99,100 @@ const getFileButtonText = (uploadedFileName: string | null) => {
 type HighlightRange = { start: number; end: number }
 type HighlightSpan = HighlightRange & { id: number }
 type HighlightCandidateKey = 'correction' | 'original'
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const buildErrorDescription = (error: unknown) => {
+  return error instanceof Error ? error.message : 'No pudimos completar la operación.'
+}
+
+const buildMissingStatus = (manualMissingMessage: string): StatusState => ({
+  variant: 'warning',
+  title: 'Falta contenido',
+  description: manualMissingMessage,
+})
+
+const buildManualProcessingStatus = (actionLabel: string): StatusState => ({
+  variant: 'info',
+  title: 'Procesando',
+  description: `${actionLabel} en curso. Esto puede tardar unos segundos?`,
+})
+
+const buildManualSuccessStatus = (mode: TranslatorMode, activeConfigLabel: string): StatusState => ({
+  variant: 'success',
+  title: 'Listo',
+  description: mode === 'post-editing' ? 'Traducción completada correctamente.' : `${activeConfigLabel} completado correctamente.`,
+})
+
+const buildManualErrorStatus = (error: unknown): StatusState => ({
+  variant: 'danger',
+  title: 'Error en la solicitud',
+  description: buildErrorDescription(error),
+})
+
+const abortOngoingTranslation = (translateAbortRef: RefObject<AbortController | null>) => {
+  translateAbortRef.current?.abort()
+  translateAbortRef.current = null
+}
+
+const resetResultForRun = (params: {
+  mode: TranslatorMode
+  setTranslationText: (next: string) => void
+  setPostEditText: (next: string) => void
+  setPostEditTouched: (next: boolean) => void
+  setOutputText: (next: string) => void
+}) => {
+  if (params.mode === 'post-editing') {
+    params.setTranslationText('')
+    params.setPostEditText('')
+    params.setPostEditTouched(false)
+    return
+  }
+  params.setOutputText('')
+}
+
+const applyRunResult = (params: {
+  mode: TranslatorMode
+  result: string
+  setTranslationText: (next: string) => void
+  setOutputText: (next: string) => void
+}) => {
+  if (params.mode === 'post-editing') {
+    params.setTranslationText(params.result)
+    return
+  }
+  params.setOutputText(params.result)
+}
+
+const shouldShowResultOverlay = (params: {
+  processingTask: ProcessingTask
+  mode: TranslatorMode
+  outputText: string
+  translationText: string
+}) => {
+  if (params.processingTask === 'grammar') {
+    return params.mode === 'grammar'
+  }
+  if (params.processingTask !== 'translate') {
+    return false
+  }
+  if (params.mode === 'translate') {
+    return params.outputText.trim().length === 0
+  }
+  if (params.mode === 'post-editing') {
+    return params.translationText.trim().length === 0
+  }
+  return false
+}
 
 const resolveHighlightRange = (
   text: string,
@@ -216,6 +311,449 @@ const renderHighlightedText = (
   return nodes
 }
 
+function TranslatorHeader() {
+  return (
+    <header className="space-y-3 rounded-3xl bg-white/80 p-6 shadow-sm backdrop-blur dark:bg-slate-900/60">
+      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+        Módulo avanzado
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traductor inteligente BSC</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Traducción estándar, corrección gramatical y postedición integrados en un solo flujo.
+          </p>
+        </div>
+        <div className="rounded-2xl bg-bsc-blue-medium/10 px-4 py-2 text-sm text-bsc-blue-medium dark:bg-bsc-blue-medium/20 dark:text-bsc-blue-medium-dark">
+          Máximo {MAX_CHARACTERS.toLocaleString('es-ES')} caracteres
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function ModeAndLanguageCard(props: Readonly<{
+  activeConfig: { label: string; description: string }
+  mode: TranslatorMode
+  onModeChange: (nextMode: TranslatorMode) => void
+  canChangeProvider: boolean
+  isLoadingProviders: boolean
+  sortedProviders: ProviderRecord[]
+  providerId: number | null
+  onProviderChange: (nextId: number) => void
+  providerHelperText?: string
+  providersError: Error | null
+  sourceLang: string
+  targetLang: string
+  onSourceLangChange: (next: string) => void
+  onTargetLangChange: (next: string) => void
+  onSwapLanguages: () => void
+  providerInputCodes?: string[]
+  providerOutputCodes?: string[]
+  lockControls: boolean
+}>) {
+  return (
+    <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-1">
+        <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Modo de trabajo</p>
+        <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">{props.activeConfig.label}</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{props.activeConfig.description}</p>
+      </div>
+
+      <div className="flex flex-wrap gap-3 pt-2">
+        {(Object.keys(MODE_CONFIG) as TranslatorMode[]).map((item) => {
+          const isActive = item === props.mode
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => props.onModeChange(item)}
+              className={`rounded-full border px-5 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring ${
+                isActive
+                  ? 'border-bsc-blue-medium bg-bsc-blue-medium/10 text-bsc-blue-medium dark:border-bsc-blue-medium-dark dark:bg-bsc-blue-medium-dark/10 dark:text-bsc-blue-medium-dark'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              {MODE_CONFIG[item].label}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="w-full max-w-sm">
+          <Select
+            label="Modelo"
+            helperText={props.providerHelperText}
+            value={typeof props.providerId === 'number' ? String(props.providerId) : ''}
+            onChange={(event) => props.onProviderChange(Number(event.target.value))}
+            disabled={!props.canChangeProvider || props.lockControls || props.isLoadingProviders || props.sortedProviders.length === 0} // NOSONAR
+            className="bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+          >
+            {props.isLoadingProviders && <option value="">Cargando modelos…</option>}
+            {!props.isLoadingProviders && props.sortedProviders.length === 0 && <option value="">Sin modelos disponibles</option>}
+            {props.sortedProviders.map((record) => (
+              <option key={record.id} value={String(record.id)}>
+                {record.name}
+                {record.isDefault ? ' (default)' : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {props.providersError && (
+          <div className="w-full sm:w-auto">
+            <p className="text-xs text-red-600 dark:text-red-200">{props.providersError.message}</p>
+          </div>
+        )}
+      </div>
+
+      {props.mode === 'grammar' ? (
+        <div className="max-w-sm">
+          <LanguageSelector
+            label="Idioma"
+            selectedCode={props.sourceLang}
+            onChange={props.onSourceLangChange}
+            allowedIsoCodes={props.providerInputCodes}
+          />
+          <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
+            El modo Grammar Checker analiza gramática y ortografía en este idioma.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="flex-1">
+            <LanguageSelector
+              label="Idioma origen"
+              selectedCode={props.sourceLang}
+              onChange={props.onSourceLangChange}
+              allowedIsoCodes={props.providerInputCodes}
+            />
+          </div>
+          <div className="flex items-center justify-center lg:pt-9">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Intercambiar idiomas"
+              onClick={props.onSwapLanguages}
+              disabled={props.lockControls}
+            >
+              <SwapIcon />
+            </Button>
+          </div>
+          <div className="flex-1">
+            <LanguageSelector
+              label="Idioma destino"
+              selectedCode={props.targetLang}
+              onChange={props.onTargetLangChange}
+              excludeCode={props.sourceLang}
+              allowedIsoCodes={props.providerOutputCodes}
+            />
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function TextPanelsSection(props: Readonly<{
+  mode: TranslatorMode
+  inputText: string
+  inputCharacters: number
+  inputTextareaRef: RefObject<HTMLTextAreaElement | null>
+  lockControls: boolean
+  fileButtonText: string
+  onTriggerFileDialog: () => void
+  onResetInput: () => void
+  showCancelButton: boolean
+  onCancel: () => void
+  onProcess: () => void
+  canTranslateInput: boolean
+  primaryButtonLabel: string
+  onInputChange: (event: ChangeEvent<HTMLTextAreaElement>) => void
+  inputHelperText?: string
+  charError?: string
+  fileError?: string
+  fileInputRef: RefObject<HTMLInputElement | null>
+  onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void
+  exportFormat: ExportFormat
+  onExportFormatChange: (next: ExportFormat) => void
+  onExport: () => void
+  isExportDisabled: boolean
+  outputText: string
+  translationText: string
+  outputTextareaRef: RefObject<HTMLTextAreaElement | null>
+  grammarOutputRef: RefObject<HTMLDivElement | null>
+  grammarPopover: { id: number; top: number; left: number } | null
+  grammarSuggestions: GrammarSuggestion[]
+  grammarHighlightSpans: HighlightSpan[]
+  hoveredGrammarSuggestionId: number | null
+  setHoveredGrammarSuggestionId: (next: number | null) => void
+  onGrammarSpanEnter: (params: { id: number; element: HTMLElement }) => void
+  onGrammarSpanLeave: () => void
+  showResultOverlay: boolean
+  grammarHasErrors: boolean
+  statusTitle?: string
+  onClearResult: () => void
+  isClearResultDisabled: boolean
+}>) {
+  const isGrammarMode = props.mode === 'grammar'
+
+  return (
+    <section className="grid gap-6 lg:grid-cols-2">
+      <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Texto origen</h3>
+          </div>
+          <div className="text-sm font-semibold text-slate-500 dark:text-slate-300">
+            {props.inputCharacters.toLocaleString('es-ES')} / {MAX_CHARACTERS.toLocaleString('es-ES')}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" size="sm" onClick={props.onTriggerFileDialog} disabled={props.lockControls}>
+              {props.fileButtonText}
+            </Button>
+
+            <Button type="button" variant="ghost" size="sm" onClick={props.onResetInput} disabled={props.lockControls}>
+              Limpiar texto
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {props.showCancelButton ? (
+              <Button type="button" variant="danger" size="sm" onClick={props.onCancel}>
+                Cancelar
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={props.onProcess}
+                disabled={!props.canTranslateInput || props.lockControls}
+              >
+                {props.primaryButtonLabel}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <Textarea
+          placeholder="Escribe, pega o importa tu texto aquí?"
+          rows={14}
+          value={props.inputText}
+          ref={props.inputTextareaRef}
+          onChange={props.onInputChange}
+          disabled={props.lockControls}
+          className={[
+            'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500',
+            isGrammarMode
+              ? 'selection:bg-emerald-200/70 selection:text-slate-900 dark:selection:bg-emerald-500/20 dark:selection:text-slate-50'
+              : '',
+          ].join(' ')}
+          helperText={props.inputHelperText}
+          error={props.charError}
+        />
+
+        {props.fileError && <p className="text-xs text-red-500">{props.fileError}</p>}
+        <input ref={props.fileInputRef} type="file" accept=".txt,text/plain" className="hidden" onChange={props.onFileSelection} />
+      </Card>
+
+      <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">
+              {props.mode === 'post-editing' ? 'Traducción' : 'Resultado'}
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-3">
+              <Select
+                value={props.exportFormat}
+                onChange={(event) => props.onExportFormatChange(event.target.value as ExportFormat)}
+                className="min-w-35 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+              >
+                {EXPORT_FORMATS.map((format) => (
+                  <option key={format.value} value={format.value}>
+                    {format.label}
+                  </option>
+                ))}
+              </Select>
+              <Button type="button" variant="primary" size="sm" onClick={props.onExport} disabled={props.isExportDisabled}>
+                Exportar
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative">
+          {isGrammarMode ? (
+            <div
+              className="min-h-87.5 rounded-lg border border-gray-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+              aria-label="Texto corregido"
+            >
+              <div ref={props.grammarOutputRef} className="relative whitespace-pre-wrap wrap-break-word">
+                {renderHighlightedText(
+                  props.outputText,
+                  props.grammarHighlightSpans,
+                  props.hoveredGrammarSuggestionId,
+                  props.setHoveredGrammarSuggestionId,
+                  props.onGrammarSpanEnter,
+                  props.onGrammarSpanLeave,
+                )}
+                {props.grammarPopover && props.grammarSuggestions[props.grammarPopover.id] && (
+                  <div
+                    className="pointer-events-none absolute z-10 w-70 rounded-xl border border-gray-200 bg-white p-3 text-sm text-slate-800 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    style={{ top: props.grammarPopover.top, left: props.grammarPopover.left }}
+                    role="tooltip"
+                  >
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Posición: {props.grammarSuggestions[props.grammarPopover.id].position}
+                    </p>
+                    <p className="mt-2">
+                      <span className="font-semibold">Original:</span> {props.grammarSuggestions[props.grammarPopover.id].original}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-semibold">Corrección:</span> {props.grammarSuggestions[props.grammarPopover.id].correction}
+                    </p>
+                    {props.grammarSuggestions[props.grammarPopover.id].explanation && (
+                      <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                        {props.grammarSuggestions[props.grammarPopover.id].explanation}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Textarea
+              placeholder="Aquí verás la traducción, corrección gramatical o postedición."
+              rows={14}
+              value={props.mode === 'post-editing' ? props.translationText : props.outputText}
+              ref={props.outputTextareaRef}
+              readOnly
+              className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+            />
+          )}
+
+          {props.showResultOverlay && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
+              <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />
+                <p>Procesando solicitud</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {isGrammarMode && (
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            {props.grammarHasErrors
+              ? 'Se detectaron sugerencias. Pasa el mouse por el texto subrayado para ver detalles.'
+              : 'No se detectaron errores.'}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <span>
+            Estado: <strong className="font-semibold">{props.statusTitle ?? 'Pendiente'}</strong>
+          </span>
+          <Button type="button" variant="ghost" size="sm" onClick={props.onClearResult} disabled={props.isClearResultDisabled}>
+            Vaciar panel
+          </Button>
+        </div>
+      </Card>
+    </section>
+  )
+}
+
+function PostEditingCard(props: Readonly<{
+  postEditTone: PostEditTone
+  onPostEditToneChange: (next: PostEditTone) => void
+  postEditLength: PostEditLength
+  onPostEditLengthChange: (next: PostEditLength) => void
+  onPostEdit: () => void
+  canPostEditText: boolean
+  isProcessing: boolean
+  postEditText: string
+  onPostEditTextChange: (next: string) => void
+  postEditTextareaRef: RefObject<HTMLTextAreaElement | null>
+  onResetFromTranslation: () => void
+  canResetFromTranslation: boolean
+  processingTask: ProcessingTask
+}>) {
+  return (
+    <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Post-Editing</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Edita la traducción y aplica mejoras de estilo, tono y longitud. El resultado se guarda en esta misma caja.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={props.onResetFromTranslation}
+          disabled={!props.canResetFromTranslation || props.isProcessing}
+        >
+          Restablecer desde traducción
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap gap-3">
+          <Select
+            label="Tono"
+            value={props.postEditTone}
+            onChange={(event) => props.onPostEditToneChange(event.target.value as PostEditTone)}
+            disabled={props.isProcessing}
+            options={POST_EDIT_TONES}
+            className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+          />
+          <Select
+            label="Longitud"
+            value={props.postEditLength}
+            onChange={(event) => props.onPostEditLengthChange(event.target.value as PostEditLength)}
+            disabled={props.isProcessing}
+            options={POST_EDIT_LENGTHS}
+            className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
+          />
+        </div>
+        <Button type="button" variant="primary" onClick={props.onPostEdit} disabled={!props.canPostEditText || props.isProcessing}>
+          {props.isProcessing ? 'Procesando?' : POST_EDITING_BUTTON_LABEL}
+        </Button>
+      </div>
+
+      <Textarea
+        placeholder="Aquí se editará el texto sobre el que aplicar Post-Editing?"
+        rows={12}
+        value={props.postEditText}
+        ref={props.postEditTextareaRef}
+        onChange={(event) => props.onPostEditTextChange(event.target.value)}
+        disabled={props.isProcessing}
+        className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
+      />
+
+      {props.processingTask === 'post-edit' && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
+          <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud?
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export const TranslatorView = () => {
   const user = useAuthStore((state) => state.user)
   const canChangeProvider = Boolean(user?.isSuperuser)
@@ -260,6 +798,9 @@ export const TranslatorView = () => {
   const providerHelperText = getProviderHelperText({ canChangeProvider, providersError })
   const selectedProviderId = typeof providerId === 'number' ? providerId : undefined
   const lockControls = isProcessing && mode !== 'translate'
+  const isTranslateMode = mode === 'translate'
+  const isPostEditingMode = mode === 'post-editing'
+  const showCancelButton = isTranslateMode && isProcessing
   const grammarHighlightSpans = useMemo(
     () => buildHighlightSpans(outputText, grammarSuggestions, ['correction', 'original']),
     [grammarSuggestions, outputText],
@@ -559,68 +1100,38 @@ export const TranslatorView = () => {
     const isManual = origin === 'manual'
 
     if (!canTranslateInput) {
-      if (isManual) {
-        setStatus({
-          variant: 'warning',
-          title: 'Falta contenido',
-          description: manualMissingMessage,
-        })
-      }
+      if (isManual) setStatus(buildMissingStatus(manualMissingMessage))
       return
     }
 
     const isTranslateLikeMode = mode !== 'grammar'
 
-    if (isTranslateLikeMode) {
-      translateAbortRef.current?.abort()
-      translateAbortRef.current = null
-    }
+    if (isTranslateLikeMode) abortOngoingTranslation(translateAbortRef)
 
     setIsProcessing(true)
     setProcessingTask(mode === 'grammar' ? 'grammar' : 'translate')
     if (isTranslateLikeMode) {
-      if (mode === 'post-editing') {
-        setTranslationText('')
-        setPostEditText('')
-        setPostEditTouched(false)
-      } else {
-        setOutputText('')
-      }
-    }
-    if (isManual) {
-      setStatus({
-        variant: 'info',
-        title: 'Procesando',
-        description: `${activeConfig.actionLabel} en curso. Esto puede tardar unos segundos…`,
+      resetResultForRun({
+        mode,
+        setTranslationText,
+        setPostEditText,
+        setPostEditTouched,
+        setOutputText,
       })
     }
+    if (isManual) setStatus(buildManualProcessingStatus(activeConfig.actionLabel))
 
     try {
       const run = modeRunner[mode]
       const result = await run()
 
-      if (mode === 'post-editing') {
-        setTranslationText(result)
-      } else {
-        setOutputText(result)
-      }
-      if (isManual) {
-        setStatus({
-          variant: 'success',
-          title: 'Listo',
-          description: mode === 'post-editing' ? 'Traducción completada correctamente.' : `${activeConfig.label} completado correctamente.`,
-        })
-      }
+      applyRunResult({ mode, result, setTranslationText, setOutputText })
+      if (isManual) setStatus(buildManualSuccessStatus(mode, activeConfig.label))
     } catch (error) {
       if (isCanceledError(error)) {
         return
       }
-      const description = error instanceof Error ? error.message : 'No pudimos completar la operación.'
-      setStatus({
-        variant: 'danger',
-        title: 'Error en la solicitud',
-        description,
-      })
+      setStatus(buildManualErrorStatus(error))
     } finally {
       translateAbortRef.current = null
       setIsProcessing(false)
@@ -739,17 +1250,6 @@ export const TranslatorView = () => {
     downloadBlob(blob, `resultado-${mode}.docx`)
   }
 
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
   const handleClearResult = () => {
     if (mode === 'post-editing') {
       setTranslationText('')
@@ -761,8 +1261,7 @@ export const TranslatorView = () => {
   }
 
   const handleCancelTranslation = () => {
-    translateAbortRef.current?.abort()
-    translateAbortRef.current = null
+    abortOngoingTranslation(translateAbortRef)
     setIsProcessing(false)
     setProcessingTask(null)
     setStatus({
@@ -773,389 +1272,115 @@ export const TranslatorView = () => {
   }
 
   const fileButtonText = getFileButtonText(uploadedFileName)
-  const isClearResultDisabled = mode === 'post-editing' ? (!translationText && !postEditText) || isProcessing : !outputText || isProcessing
+  const isClearResultDisabled = isPostEditingMode ? (!translationText && !postEditText) || isProcessing : !outputText || isProcessing
+  const showResultOverlay = shouldShowResultOverlay({ processingTask, mode, outputText, translationText })
+  const statusTitle = status?.title
+
+  const handleProviderChange = (nextProviderId: number) => {
+    if (!Number.isFinite(nextProviderId)) return
+    setProviderId(nextProviderId)
+  }
+
+  const handleExportFormatChange = (next: ExportFormat) => {
+    setExportFormat(next)
+  }
+
+  const handleResetFromTranslation = () => {
+    setPostEditText(translationText)
+    setPostEditTouched(false)
+  }
+
+  const handlePostEditTextChange = (next: string) => {
+    setPostEditText(next)
+    setPostEditTouched(true)
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-linear-to-b from-white via-blue-50/40 to-blue-100/20 px-4 py-8 text-slate-900 dark:bg-linear-to-b dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50 sm:px-6 lg:px-10">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
-        <header className="space-y-3 rounded-3xl bg-white/80 p-6 shadow-sm backdrop-blur dark:bg-slate-900/60">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Módulo avanzado</p>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traductor inteligente BSC</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Traducción estándar, corrección gramatical y postedición integrados en un solo flujo.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-bsc-blue-medium/10 px-4 py-2 text-sm text-bsc-blue-medium dark:bg-bsc-blue-medium/20 dark:text-bsc-blue-medium-dark">
-              Máximo {MAX_CHARACTERS.toLocaleString('es-ES')} caracteres
-            </div>
-          </div>
-        </header>
+        <TranslatorHeader />
 
-        
+        <ModeAndLanguageCard
+          activeConfig={activeConfig}
+          mode={mode}
+          onModeChange={handleModeChange}
+          canChangeProvider={canChangeProvider}
+          isLoadingProviders={isLoadingProviders}
+          sortedProviders={sortedProviders}
+          providerId={providerId}
+          onProviderChange={handleProviderChange}
+          providerHelperText={providerHelperText}
+          providersError={providersError}
+          sourceLang={sourceLang}
+          targetLang={targetLang}
+          onSourceLangChange={setSourceLang}
+          onTargetLangChange={setTargetLang}
+          onSwapLanguages={handleSwapLanguages}
+          providerInputCodes={providerInputCodes}
+          providerOutputCodes={providerOutputCodes}
+          lockControls={lockControls}
+        />
 
-        <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-1">
-            <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Modo de trabajo</p>
-            <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">{activeConfig.label}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{activeConfig.description}</p>
-          </div>
-          <div className="flex flex-wrap gap-3 pt-2">
-            {(Object.keys(MODE_CONFIG) as TranslatorMode[]).map((item) => {
-              const isActive = item === mode
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => handleModeChange(item)}
-                  className={`rounded-full border px-5 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring ${
-                    isActive
-                      ? 'border-bsc-blue-medium bg-bsc-blue-medium text-white shadow'
-                      : 'border-gray-300 bg-white/70 text-gray-600 hover:border-bsc-blue-medium/60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                  }`}
-                >
-                  {MODE_CONFIG[item].label}
-                </button>
-              )
-            })}
-          </div>
-        </Card>
+        {status && <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />}
 
-        <Card padding="lg" className="space-y-6 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-           <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="w-full sm:w-72">
-                <Select
-                  label="Modelo"
-                  value={providerId !== null ? String(providerId) : ''}
-                  onChange={(event) => setProviderId(Number(event.target.value))}
-                  disabled={!canChangeProvider || lockControls || isLoadingProviders || sortedProviders.length === 0} // NOSONAR
-                  helperText={providerHelperText}
-                >
-                  {isLoadingProviders && <option value="">Cargando modelos…</option>}
-                  {!isLoadingProviders && sortedProviders.length === 0 && <option value="">Sin modelos disponibles</option>}
-                  {sortedProviders.map((record) => (
-                    <option key={record.id} value={String(record.id)}>
-                      {record.name}
-                      {record.isDefault ? ' (default)' : ''}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+        <TextPanelsSection
+          mode={mode}
+          inputText={inputText}
+          inputCharacters={inputCharacters}
+          inputTextareaRef={inputTextareaRef}
+          lockControls={lockControls}
+          fileButtonText={fileButtonText}
+          onTriggerFileDialog={triggerFileDialog}
+          onResetInput={resetInput}
+          showCancelButton={showCancelButton}
+          onCancel={handleCancelTranslation}
+          onProcess={handleProcess}
+          canTranslateInput={canTranslateInput}
+          primaryButtonLabel={isProcessing ? 'Procesando…' : activeConfig.actionLabel}
+          onInputChange={handleInputChange}
+          inputHelperText={inputHelperText}
+          charError={charError ?? undefined}
+          fileError={fileError ?? undefined}
+          fileInputRef={fileInputRef}
+          onFileSelection={handleFileSelection}
+          exportFormat={exportFormat}
+          onExportFormatChange={handleExportFormatChange}
+          onExport={handleExport}
+          isExportDisabled={isExportDisabled}
+          outputText={outputText}
+          translationText={translationText}
+          outputTextareaRef={outputTextareaRef}
+          grammarOutputRef={grammarOutputRef}
+          grammarPopover={grammarPopover}
+          grammarSuggestions={grammarSuggestions}
+          grammarHighlightSpans={grammarHighlightSpans}
+          hoveredGrammarSuggestionId={hoveredGrammarSuggestionId}
+          setHoveredGrammarSuggestionId={setHoveredGrammarSuggestionId}
+          onGrammarSpanEnter={handleGrammarSpanEnter}
+          onGrammarSpanLeave={handleGrammarSpanLeave}
+          showResultOverlay={showResultOverlay}
+          grammarHasErrors={grammarHasErrors}
+          statusTitle={statusTitle}
+          onClearResult={handleClearResult}
+          isClearResultDisabled={isClearResultDisabled}
+        />
 
-              {providersError && (
-                <div className="w-full sm:w-auto">
-                  <p className="text-xs text-red-600 dark:text-red-200">{providersError.message}</p>
-                </div>
-              )}
-            </div>
-          
-          {mode === 'grammar' ? (
-            <div className="max-w-sm">
-              <LanguageSelector
-                label="Idioma"
-                selectedCode={sourceLang}
-                onChange={setSourceLang}
-                allowedIsoCodes={providerInputCodes}
-              />
-              <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
-                El modo Grammar Checker analiza gramática y ortografía en este idioma.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-              <div className="flex-1">
-                <LanguageSelector
-                  label="Idioma origen"
-                  selectedCode={sourceLang}
-                  onChange={setSourceLang}
-                  allowedIsoCodes={providerInputCodes}
-                />
-              </div>
-              <div className="flex items-center justify-center lg:pt-9">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label="Intercambiar idiomas"
-                  onClick={handleSwapLanguages}
-                  disabled={lockControls}
-                >
-                  <SwapIcon />
-                </Button>
-              </div>
-              <div className="flex-1">
-                <LanguageSelector
-                  label="Idioma destino"
-                  selectedCode={targetLang}
-                  onChange={setTargetLang}
-                  excludeCode={sourceLang}
-                  allowedIsoCodes={providerOutputCodes}
-                />
-              </div>
-            </div>
-          )}
-        </Card>
-            {status && (
-              <Alert variant={status.variant} title={status.title} description={status.description} className="shadow-sm" />
-            )}
-        <section className="grid gap-6 lg:grid-cols-2">
-          <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Texto origen</h3>
-              </div>
-              <div className="text-sm font-semibold text-slate-500 dark:text-slate-300">
-                {inputCharacters.toLocaleString('es-ES')} / {MAX_CHARACTERS.toLocaleString('es-ES')}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={triggerFileDialog}
-                  disabled={lockControls}
-                >
-                  {fileButtonText}
-                </Button>
-                
-                <Button type="button" variant="ghost" size="sm" onClick={resetInput} disabled={lockControls}>
-                  Limpiar texto
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {mode === 'translate' && isProcessing ? (
-                  <Button type="button" variant="danger" size="sm" onClick={handleCancelTranslation}>
-                    Cancelar
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handleProcess}
-                    disabled={!canTranslateInput || lockControls}
-                  >
-                    {isProcessing ? 'Procesando…' : activeConfig.actionLabel}
-                  </Button>
-                )}
-              
-              </div>
-            </div>
-            <Textarea
-              placeholder="Escribe, pega o importa tu texto aquí…"
-              rows={14}
-              value={inputText}
-              ref={inputTextareaRef}
-              onChange={handleInputChange}
-              disabled={lockControls}
-              className={[
-                'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500',
-                mode === 'grammar'
-                  ? 'selection:bg-emerald-200/70 selection:text-slate-900 dark:selection:bg-emerald-500/20 dark:selection:text-slate-50'
-                  : '',
-              ].join(' ')}
-              helperText={inputHelperText}
-              error={charError ?? undefined}
-            />
-            {fileError && <p className="text-xs text-red-500">{fileError}</p>}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,text/plain"
-              className="hidden"
-              onChange={handleFileSelection}
-            />
-          </Card>
-
-          <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">
-                  {mode === 'post-editing' ? 'Traducción' : 'Resultado'}
-                </h3>
-                
-              </div>
-            </div>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                <div className='flex gap-3'>
-
-                <Select
-                  value={exportFormat}
-                  onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
-                  className="min-w-35 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                >
-                  {EXPORT_FORMATS.map((format) => (
-                    <option key={format.value} value={format.value}>
-                      {format.label}
-                    </option>
-                  ))}
-                </Select>
-                <Button type="button" variant="primary" size="sm" onClick={handleExport} disabled={isExportDisabled}>
-                  Exportar
-                </Button>
-                </div>
-                </div>
-
-              </div>
-
-            <div className="relative">
-              {mode === 'grammar' ? (
-                <div
-                  className="min-h-87.5 rounded-lg border border-gray-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                  aria-label="Texto corregido"
-                >
-                  <div ref={grammarOutputRef} className="relative whitespace-pre-wrap wrap-break-word">
-                    {renderHighlightedText(
-                      outputText,
-                      grammarHighlightSpans,
-                      hoveredGrammarSuggestionId,
-                      setHoveredGrammarSuggestionId,
-                      handleGrammarSpanEnter,
-                      handleGrammarSpanLeave,
-                    )}
-                    {grammarPopover && grammarSuggestions[grammarPopover.id] && (
-                      <div
-                        className="pointer-events-none absolute z-10 w-70 rounded-xl border border-gray-200 bg-white p-3 text-sm text-slate-800 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                        style={{ top: grammarPopover.top, left: grammarPopover.left }}
-                        role="tooltip"
-                      >
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Posición: {grammarSuggestions[grammarPopover.id].position}
-                        </p>
-                        <p className="mt-2">
-                          <span className="font-semibold">Original:</span> {grammarSuggestions[grammarPopover.id].original}
-                        </p>
-                        <p className="mt-1">
-                          <span className="font-semibold">Corrección:</span>{' '}
-                          {grammarSuggestions[grammarPopover.id].correction}
-                        </p>
-                        {grammarSuggestions[grammarPopover.id].explanation && (
-                          <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                            {grammarSuggestions[grammarPopover.id].explanation}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <Textarea
-                  placeholder="Aquí verás la traducción, corrección gramatical o postedición."
-                  rows={14}
-                  value={mode === 'post-editing' ? translationText : outputText}
-                  ref={outputTextareaRef}
-                  readOnly
-                  className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
-                />
-              )}
-              {((processingTask === 'translate' && mode === 'translate' && outputText.trim().length === 0) ||
-                (processingTask === 'translate' && mode === 'post-editing' && translationText.trim().length === 0) ||
-                (processingTask === 'grammar' && mode === 'grammar')) && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
-                  <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
-                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />Procesando solicitud…
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {mode === 'grammar' && (
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {grammarHasErrors
-                  ? 'Se detectaron sugerencias. Pasa el mouse por el texto subrayado para ver detalles.'
-                  : 'No se detectaron errores.'}
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-              <span>
-                Estado: <strong className="font-semibold">{status ? status.title : 'Pendiente'}</strong>
-              </span>
-              <Button type="button" variant="ghost" size="sm" onClick={handleClearResult} disabled={isClearResultDisabled}>
-                Vaciar panel
-              </Button>
-            </div>
-          </Card>
-        </section>
-
-        {mode === 'post-editing' && (
-          <Card padding="lg" className="relative space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-1">
-                <h3 className="text-xl font-semibold text-bsc-blue-dark dark:text-white">Post-Editing</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Edita la traducción y aplica mejoras de estilo, tono y longitud. El resultado se guarda en esta misma caja.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setPostEditText(translationText)
-                  setPostEditTouched(false)
-                }}
-                disabled={!translationText || isProcessing}
-              >
-                Restablecer desde traducción
-              </Button>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-wrap gap-3">
-                <Select
-                  label="Tono"
-                  value={postEditTone}
-                  onChange={(event) => setPostEditTone(event.target.value as PostEditTone)}
-                  disabled={isProcessing}
-                  options={POST_EDIT_TONES}
-                  className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                />
-                <Select
-                  label="Longitud"
-                  value={postEditLength}
-                  onChange={(event) => setPostEditLength(event.target.value as PostEditLength)}
-                  disabled={isProcessing}
-                  options={POST_EDIT_LENGTHS}
-                  className="min-w-40 bg-white dark:bg-slate-800 h-8 text-sm py-1!"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handlePostEdit}
-                disabled={!canPostEditText || isProcessing}
-              >
-                {isProcessing ? 'Procesando…' : POST_EDITING_BUTTON_LABEL}
-              </Button>
-            </div>
-
-            <Textarea
-              placeholder="Aquí se editará el texto sobre el que aplicar Post-Editing…"
-              rows={12}
-              value={postEditText}
-              ref={postEditTextareaRef}
-              onChange={(event) => {
-                setPostEditText(event.target.value)
-                setPostEditTouched(true)
-              }}
-              disabled={isProcessing}
-              className="bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-50 dark:placeholder:text-slate-500"
-            />
-
-            {processingTask === 'post-edit' && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-slate-900/70">
-                <div className="flex items-center gap-3 text-sm font-semibold text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-bsc-blue-medium border-t-transparent" />
-                  Procesando solicitud…
-                </div>
-              </div>
-            )}
-          </Card>
+        {isPostEditingMode && (
+          <PostEditingCard
+            postEditTone={postEditTone}
+            onPostEditToneChange={setPostEditTone}
+            postEditLength={postEditLength}
+            onPostEditLengthChange={setPostEditLength}
+            onPostEdit={handlePostEdit}
+            canPostEditText={canPostEditText}
+            isProcessing={isProcessing}
+            postEditText={postEditText}
+            onPostEditTextChange={handlePostEditTextChange}
+            postEditTextareaRef={postEditTextareaRef}
+            onResetFromTranslation={handleResetFromTranslation}
+            canResetFromTranslation={Boolean(translationText)}
+            processingTask={processingTask}
+          />
         )}
 
         <Card padding="lg" className="flex flex-col gap-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">

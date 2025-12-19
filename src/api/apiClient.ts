@@ -52,7 +52,7 @@ const refreshAccessToken = async () => {
     throw new Error('No hay sesión activa.')
   }
 
-  const scheme = session.tokenType || 'Bearer'
+  const scheme = session.tokenType ?? 'Bearer'
 
   refreshPromise ??= refreshClient
       .post<RefreshApiResponse>('/auth/refresh', undefined, {
@@ -89,13 +89,13 @@ apiClient.interceptors.request.use(
     const session = AuthStorage.getSession()
 
     if (session?.token) {
-      const scheme = session.tokenType || 'Bearer'
+      const scheme = session.tokenType ?? 'Bearer'
       config.headers.Authorization = `${scheme} ${session.token}`
     }
     return config
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(new Error(error.message))
   }
 )
 
@@ -105,45 +105,47 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     if (!axios.isAxiosError(error)) {
-      return Promise.reject(error)
+      return Promise.reject(new Error(error.message))
     }
 
     const status = error.response?.status
-    const originalRequest = error.config as (typeof error.config & { _retry?: boolean }) | undefined
+    const originalRequest = error.config as (typeof error.config & { _retry?: boolean }) | undefined // NOSONAR
     const requestUrl = originalRequest?.url ?? ''
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
       if (requestUrl.includes('/auth/refresh') || requestUrl.includes('/auth/login')) {
         AuthStorage.clearSession()
         redirectToLogin('expired')
-        return Promise.reject(error)
+        return Promise.reject(new Error(error.message))
       }
 
       try {
         originalRequest._retry = true
         const nextToken = await refreshAccessToken()
-        const scheme = AuthStorage.getSession()?.tokenType || 'Bearer'
+        const scheme = AuthStorage.getSession()?.tokenType ?? 'Bearer'
         originalRequest.headers = originalRequest.headers ?? {}
         originalRequest.headers.Authorization = `${scheme} ${nextToken}`
         return apiClient(originalRequest)
       } catch (refreshError) {
+        console.log(refreshError);
+        
         AuthStorage.clearSession()
         redirectToLogin('expired')
-        return Promise.reject(refreshError)
+        return Promise.reject(new Error("No se pudo renovar la sesión. Por favor, inicie sesión nuevamente."))
       }
     }
 
     if (status === 403) {
       AuthStorage.clearSession()
       redirectToLogin('expired')
-      return Promise.reject(error)
+      return Promise.reject(new Error(error.message))
     }
 
     if (status === 500 || status === 502 || status === 503) {
       console.error('Error interno del servidor.')
     }
 
-    return Promise.reject(error)
+    return Promise.reject(new Error(error.message))
   }
 )
 
