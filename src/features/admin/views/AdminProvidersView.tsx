@@ -134,7 +134,6 @@ export const AdminProvidersView = () => {
   }
 
   const handleOpenEdit = (provider: ProviderRecord) => {
-    console.log("provideeeeerss", provider);
     
     setFormError(null)
     updateMutation.reset()

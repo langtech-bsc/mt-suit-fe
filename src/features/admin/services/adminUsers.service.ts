@@ -92,7 +92,7 @@ class AdminUsersService {
       const { data } = await apiClient.post<UsersApiResponse>(USERS_BASE_PATH, payload)
       return mapUser(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos crear el usuario.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 
@@ -104,7 +104,7 @@ class AdminUsersService {
       const { data } = await apiClient.put<UsersApiResponse>(`${USERS_BASE_PATH}/${userId}`, payload)
       return mapUser(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el usuario.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 }

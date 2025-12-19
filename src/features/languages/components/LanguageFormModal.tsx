@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { Alert, Button, Input, Modal, Switch } from '../../../components/ui'
 import type { LanguageRecord, LanguageUpsertInput } from '../types'
@@ -43,6 +43,8 @@ export const LanguageFormModal = ({
   const [sortOrder, setSortOrder] = useState(0)
   const [isActive, setIsActive] = useState(true)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [didInteract, setDidInteract] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -54,17 +56,46 @@ export const LanguageFormModal = ({
     setSortOrder(language?.sortOrder ?? 0)
     setIsActive(language?.isActive ?? true)
     setValidationError(null)
+    setFieldErrors({})
+    setDidInteract(false)
   }, [open, language])
 
-  const handleSubmit = () => {
-    setValidationError(null)
-    const validation = languageSchema.safeParse({
+  const currentValues = useMemo(
+    () => ({
       name,
       isoCode,
       nativeName,
       sortOrder,
       isActive,
-    })
+    }),
+    [isActive, isoCode, name, nativeName, sortOrder],
+  )
+
+  useEffect(() => {
+    if (!open || !didInteract) {
+      return
+    }
+
+    const validation = languageSchema.safeParse(currentValues)
+    if (validation.success) {
+      setFieldErrors({})
+      return
+    }
+
+    const next: Record<string, string> = {}
+    for (const issue of validation.error.issues) {
+      const field = issue.path[0]
+      if (typeof field === 'string' && !next[field]) {
+        next[field] = issue.message
+      }
+    }
+    setFieldErrors(next)
+  }, [currentValues, didInteract, open])
+
+  const handleSubmit = () => {
+    setValidationError(null)
+    setDidInteract(true)
+    const validation = languageSchema.safeParse(currentValues)
 
     if (!validation.success) {
       setValidationError(validation.error.issues[0]?.message ?? 'Revisa los datos del formulario.')
@@ -111,30 +142,46 @@ export const LanguageFormModal = ({
           label="Nombre del idioma"
           placeholder="Spanish"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setName(event.target.value)
+          }}
           disabled={isSubmitting}
+          error={fieldErrors.name}
         />
         <Input
           label="Código ISO"
           placeholder="es"
           value={isoCode}
-          onChange={(event) => setIsoCode(event.target.value)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setIsoCode(event.target.value)
+          }}
           disabled={isSubmitting || isEdit}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: es, en, pt-BR'}
+          error={fieldErrors.isoCode}
         />
         <Input
           label="Nombre nativo"
           placeholder="Español"
           value={nativeName}
-          onChange={(event) => setNativeName(event.target.value)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setNativeName(event.target.value)
+          }}
           disabled={isSubmitting}
+          error={fieldErrors.nativeName}
         />
         <Input
           label="Orden"
           type="number"
           value={String(sortOrder)}
-          onChange={(event) => setSortOrder(Number(event.target.value ?? 0))}
+          onChange={(event) => {
+            setDidInteract(true)
+            setSortOrder(Number(event.target.value ?? 0))
+          }}
           disabled={isSubmitting}
+          error={fieldErrors.sortOrder}
         />
       </div>
 
@@ -143,11 +190,13 @@ export const LanguageFormModal = ({
           label={isActive ? 'Idioma activo' : 'Idioma deshabilitado'}
           description="Los idiomas deshabilitados no aparecen en selectores."
           checked={isActive}
-          onChange={(event) => setIsActive(event.target.checked)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setIsActive(event.target.checked)
+          }}
           disabled={isSubmitting}
         />
       </div>
     </Modal>
   )
 }
-

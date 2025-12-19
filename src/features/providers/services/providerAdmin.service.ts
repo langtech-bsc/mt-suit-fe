@@ -92,7 +92,7 @@ class ProviderAdminService {
       })
       return mapProvider(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos crear el proveedor.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 
@@ -116,7 +116,7 @@ class ProviderAdminService {
       const { data } = await apiClient.put<ProviderApiResponse>(`${PROVIDERS_BASE_PATH}/${providerId}`, body)
       return mapProvider(data)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos actualizar el proveedor.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 
@@ -124,7 +124,7 @@ class ProviderAdminService {
     try {
       await apiClient.delete(`${PROVIDERS_BASE_PATH}/${providerId}`)
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No pudimos eliminar el proveedor.'))
+      throw new Error(getApiErrorMessage(error, 'Error desconocido.'))
     }
   }
 }

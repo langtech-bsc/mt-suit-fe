@@ -111,6 +111,8 @@ export const ProviderFormModal = ({
   const [inputFilter, setInputFilter] = useState('')
   const [outputFilter, setOutputFilter] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [didInteract, setDidInteract] = useState(false)
 
   const title = useMemo(() => (isEdit ? 'Editar proveedor' : 'Añadir proveedor'), [isEdit])
 
@@ -132,7 +134,61 @@ export const ProviderFormModal = ({
     setInputFilter('')
     setOutputFilter('')
     setValidationError(null)
+    setFieldErrors({})
+    setDidInteract(false)
   }, [open, provider])
+
+  useEffect(() => {
+    if (!open || !didInteract) {
+      return
+    }
+
+    const configValidation = parseConfig(configRaw)
+    const configError = configValidation.ok ? undefined : configValidation.message
+
+    const schema = isEdit ? editSchema : createSchema
+    const validation = schema.safeParse({
+      name,
+      providerType,
+      endpoint,
+      region,
+      inputLanguageIds,
+      outputLanguageIds,
+      apiKey,
+      isActive,
+      isDefault,
+    })
+
+    const next: Record<string, string> = {}
+    if (!validation.success) {
+      for (const issue of validation.error.issues) {
+        const field = issue.path[0]
+        if (typeof field === 'string' && !next[field]) {
+          next[field] = issue.message
+        }
+      }
+    }
+
+    if (configError) {
+      next.configuration = configError
+    }
+
+    setFieldErrors(next)
+  }, [
+    apiKey,
+    configRaw,
+    didInteract,
+    endpoint,
+    inputLanguageIds,
+    isActive,
+    isDefault,
+    isEdit,
+    name,
+    open,
+    outputLanguageIds,
+    providerType,
+    region,
+  ])
 
   const filteredInputLanguages = useMemo(() => {
     const query = normalize(inputFilter)
@@ -170,6 +226,7 @@ export const ProviderFormModal = ({
 
   const handleSubmit = () => {
     setValidationError(null)
+    setDidInteract(true)
 
     const configValidation = parseConfig(configRaw)
     if (!configValidation.ok) {
@@ -270,39 +327,73 @@ export const ProviderFormModal = ({
       )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} disabled={isSubmitting} />
+        <Input
+          label="Nombre"
+          value={name}
+          onChange={(e) => {
+            setDidInteract(true)
+            setName(e.target.value)
+          }}
+          disabled={isSubmitting}
+          error={fieldErrors.name}
+        />
         <Input
           label="Tipo"
           placeholder="openai / google"
           value={providerType}
-          onChange={(e) => setProviderType(e.target.value)}
+          onChange={(e) => {
+            setDidInteract(true)
+            setProviderType(e.target.value)
+          }}
           disabled={isSubmitting || isEdit}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: openai, google'}
+          error={fieldErrors.providerType}
         />
         <Input
           label="Endpoint"
           placeholder="https://api.example.com"
           value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
+          onChange={(e) => {
+            setDidInteract(true)
+            setEndpoint(e.target.value)
+          }}
           disabled={isSubmitting}
           helperText="Debe ser una URL válida (incluye https://)."
+          error={fieldErrors.endpoint}
         />
-        <Input label="Región" value={region} onChange={(e) => setRegion(e.target.value)} disabled={isSubmitting} />
+        <Input
+          label="Región"
+          value={region}
+          onChange={(e) => {
+            setDidInteract(true)
+            setRegion(e.target.value)
+          }}
+          disabled={isSubmitting}
+          error={fieldErrors.region}
+        />
         <PasswordInput
           className="md:col-span-2"
           label={isEdit ? 'API key (opcional)' : 'API key'}
           placeholder={isEdit ? 'Dejar vacío para mantener' : '••••••••'}
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={(e) => {
+            setDidInteract(true)
+            setApiKey(e.target.value)
+          }}
           disabled={isSubmitting}
+          error={fieldErrors.apiKey}
         />
         <Textarea
           className="md:col-span-2 min-h-40 font-mono text-xs"
           label="Configuración (JSON)"
           value={configRaw}
-          onChange={(e) => setConfigRaw(e.target.value)}
+          onChange={(e) => {
+            setDidInteract(true)
+            setConfigRaw(e.target.value)
+          }}
           disabled={isSubmitting}
           helperText={'Debe ser un objeto JSON. Ej: { "model": "gpt-4o-mini" }'}
+          error={fieldErrors.configuration}
         />
       </div>
 
@@ -316,6 +407,13 @@ export const ProviderFormModal = ({
         {languagesError && (
           <Alert variant="danger" title="No pudimos cargar los idiomas" description={(languagesError).message} />
         )}
+        {(fieldErrors.inputLanguageIds || fieldErrors.outputLanguageIds) && (
+          <Alert
+            variant="warning"
+            title="Selecciona idiomas válidos"
+            description={fieldErrors.inputLanguageIds ?? fieldErrors.outputLanguageIds ?? undefined}
+          />
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
             <div className="flex items-center justify-between gap-3">
@@ -324,7 +422,10 @@ export const ProviderFormModal = ({
                 label="Todos"
                 checked={allInputSelected}
                 indeterminate={inputIndeterminate}
-                onChange={() => setInputLanguageIds(allInputSelected ? [] : allLanguageIds)}
+                onChange={() => {
+                  setDidInteract(true)
+                  setInputLanguageIds(allInputSelected ? [] : allLanguageIds)
+                }}
                 disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
               />
             </div>
@@ -345,7 +446,10 @@ export const ProviderFormModal = ({
                     </span>
                   }
                   checked={inputLanguageIds.includes(lang.id)}
-                  onChange={() => setInputLanguageIds((current) => toggleNumberInList(current, lang.id))}
+                  onChange={() => {
+                    setDidInteract(true)
+                    setInputLanguageIds((current) => toggleNumberInList(current, lang.id))
+                  }}
                   disabled={isSubmitting || isLoadingLanguages}
                 />
               ))}
@@ -362,7 +466,10 @@ export const ProviderFormModal = ({
                 label="Todos"
                 checked={allOutputSelected}
                 indeterminate={outputIndeterminate}
-                onChange={() => setOutputLanguageIds(allOutputSelected ? [] : allLanguageIds)}
+                onChange={() => {
+                  setDidInteract(true)
+                  setOutputLanguageIds(allOutputSelected ? [] : allLanguageIds)
+                }}
                 disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
               />
             </div>
@@ -383,7 +490,10 @@ export const ProviderFormModal = ({
                     </span>
                   }
                   checked={outputLanguageIds.includes(lang.id)}
-                  onChange={() => setOutputLanguageIds((current) => toggleNumberInList(current, lang.id))}
+                  onChange={() => {
+                    setDidInteract(true)
+                    setOutputLanguageIds((current) => toggleNumberInList(current, lang.id))
+                  }}
                   disabled={isSubmitting || isLoadingLanguages}
                 />
               ))}
@@ -402,13 +512,19 @@ export const ProviderFormModal = ({
         <Switch
           label={isActive ? 'Proveedor activo' : 'Proveedor deshabilitado'}
           checked={isActive}
-          onChange={(event) => setIsActive(event.target.checked)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setIsActive(event.target.checked)
+          }}
           disabled={isSubmitting}
         />
         <Switch
           label={isDefault ? 'Proveedor por defecto' : 'No es por defecto'}
           checked={isDefault}
-          onChange={(event) => setIsDefault(event.target.checked)}
+          onChange={(event) => {
+            setDidInteract(true)
+            setIsDefault(event.target.checked)
+          }}
           disabled={isSubmitting}
         />
       </div>

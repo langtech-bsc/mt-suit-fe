@@ -145,7 +145,8 @@ apiClient.interceptors.response.use(
       console.error('Error interno del servidor.')
     }
 
-    return Promise.reject(new Error(error.message))
+    
+    return Promise.reject(new Error(error.response?.data?.detail ?? error.message))
   }
 )
 

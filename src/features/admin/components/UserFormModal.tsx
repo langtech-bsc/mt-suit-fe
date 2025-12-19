@@ -1,4 +1,6 @@
-import { useMemo } from 'react'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useMemo } from 'react'
+import type { FieldErrors, Resolver } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Alert, Button, Checkbox, Input, Modal, Select, Switch } from '../../../components/ui'
@@ -7,8 +9,31 @@ import { useAuthStore } from '../../auth/store/auth.store'
 
 type Mode = 'create' | 'edit'
 
+const makeZodResolver =
+  <TValues extends Record<string, unknown>>(schema: z.ZodType<TValues>): Resolver<TValues> =>
+  async (values) => {
+    const parsed = schema.safeParse(values)
+    if (parsed.success) {
+      return { values: parsed.data, errors: {} }
+    }
+
+    const errors: FieldErrors<TValues> = {} as any
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0]
+      if (typeof field !== 'string') {
+        continue
+      }
+      if ((errors as any)[field]) {
+        continue
+      }
+      ;(errors as any)[field] = { type: 'validation', message: issue.message }
+    }
+
+    return { values: {} as any, errors }
+  }
+
 const createSchema = z.object({
-  username: z.string().min(3, 'El usuario es obligatorio.'),
+  username: z.string().min(1, 'El usuario es obligatorio.'),
   email: z.email('Ingresa un email válido.'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
   role: z
@@ -18,7 +43,7 @@ const createSchema = z.object({
 })
 
 const editSchema = z.object({
-  username: z.string().min(3, 'El usuario es obligatorio.'),
+  username: z.string().min(1, 'El usuario es obligatorio.'),
   email: z.email('Ingresa un email válido.'),
   password: z.string().optional(),
   isActive: z.boolean(),
@@ -56,6 +81,7 @@ export const UserFormModal = ({
   
   const currentUserLogged = useAuthStore((state) => state.user)
   const hasRoleOptions = roleOptions.length > 0
+  const createRoleFallback = roleOptions[0] ?? ''
 
   const itself = useMemo(() => {
     if (!isEdit || !user || !currentUserLogged) {
@@ -75,56 +101,65 @@ export const UserFormModal = ({
   }, [user, roleOptions])
 
   const createForm = useForm<CreateUserInput>({
-    mode: 'onBlur',
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    resolver: makeZodResolver(createSchema),
     defaultValues: {
       username: '',
       email: '',
       password: '',
-      role: roleOptions[0] ?? '',
+      role: createRoleFallback,
     },
   })
 
   const editForm = useForm<EditUserInput>({
-    mode: 'onBlur',
-    values: {
-      username: user?.username ?? '',
-      email: user?.email ?? '',
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    resolver: makeZodResolver(editSchema),
+    defaultValues: {
+      username: '',
+      email: '',
       password: '',
-      isActive: Boolean(user?.isActive),
-      role: defaultEditRole,
-      isSuperuser: Boolean(user?.isSuperuser),
+      isActive: true,
+      role: createRoleFallback,
+      isSuperuser: false,
     },
   })
 
-  const handleSubmitCreate = createForm.handleSubmit((values) => {
-    const validation = createSchema.safeParse(values)
-    if (!validation.success) {
-      for (const issue of validation.error.issues) {
-        const field = issue.path[0]
-        if (typeof field === 'string') {
-          createForm.setError(field as keyof CreateUserInput, { type: 'manual', message: issue.message })
-        }
-      }
+  useEffect(() => {
+    if (!open) {
       return
     }
-    onCreate(validation.data)
+
+    if (isEdit) {
+      editForm.reset({
+        username: user?.username ?? '',
+        email: user?.email ?? '',
+        password: '',
+        isActive: Boolean(user?.isActive),
+        role: defaultEditRole,
+        isSuperuser: Boolean(user?.isSuperuser),
+      })
+      return
+    }
+
+    createForm.reset({
+      username: '',
+      email: '',
+      password: '',
+      role: createRoleFallback,
+    })
+  }, [createForm, createRoleFallback, defaultEditRole, editForm, isEdit, open, user])
+
+  const handleSubmitCreate = createForm.handleSubmit((values) => {
+    onCreate(values)
   })
 
   const handleSubmitEdit = editForm.handleSubmit((values) => {
     if (!user) {
       return
     }
-    const validation = editSchema.safeParse(values)
-    if (!validation.success) {
-      for (const issue of validation.error.issues) {
-        const field = issue.path[0]
-        if (typeof field === 'string') {
-          editForm.setError(field as keyof EditUserInput, { type: 'manual', message: issue.message })
-        }
-      }
-      return
-    }
-    onEdit(user.id, validation.data)
+    onEdit(user.id, values)
     })
     
     let buttonText = 'Crear usuario'
@@ -160,7 +195,7 @@ export const UserFormModal = ({
       description={isEdit ? 'Actualiza datos básicos y estado de la cuenta.' : 'Crea una cuenta con credenciales iniciales.'}
       footer={footer}
     >
-      {errorMessage && <Alert variant="danger" title="No pudimos completar la acción" description={errorMessage} />}
+      {errorMessage && <Alert variant="danger" title={"No pudimos completar la acción"} description={errorMessage} />}
       {!isEdit && !hasRoleOptions && (
         <Alert
           variant="warning"
