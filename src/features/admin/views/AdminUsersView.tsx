@@ -284,11 +284,11 @@ export const AdminUsersView = () => {
     setActionError(null)
 
     const currentUser = users.find((candidate) => candidate.id === userId)
-    const currentRoleName = currentUser?.roles[0]?.name ?? 'all'
-    const nextRoleName = payload.role?.trim() ? payload.role : 'all'
-    const shouldAssignRole = nextRoleName !== 'all' && nextRoleName !== currentRoleName
-    const roleId = shouldAssignRole ? roleNameToId.get(nextRoleName) : undefined
-    if (shouldAssignRole && typeof roleId !== 'number') {
+    const currentRoleName = currentUser?.roles[0]?.name ?? ''
+    const nextRoleName = payload.role.trim()
+    const shouldAssignRole = nextRoleName !== currentRoleName
+    const roleId = roleNameToId.get(nextRoleName)
+    if (typeof roleId !== 'number') {
       setActionError('No pudimos identificar el rol seleccionado. Refresca la lista de roles e inténtalo de nuevo.')
       return
     }
@@ -304,7 +304,7 @@ export const AdminUsersView = () => {
         password,
         ...(typeof isSuperuserUpdate === 'boolean' ? { is_superuser: isSuperuserUpdate } : {}),
       },
-      roleId,
+      roleId: shouldAssignRole ? roleId : undefined,
       roleName: shouldAssignRole ? nextRoleName : undefined,
     })
   }
