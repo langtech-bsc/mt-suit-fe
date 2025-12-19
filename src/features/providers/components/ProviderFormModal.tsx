@@ -10,10 +10,7 @@ type Mode = 'create' | 'edit'
 const createSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.'),
   providerType: z.string().min(2, 'El tipo de proveedor es obligatorio.'),
-  endpoint: z
-    .string()
-    .trim()
-    .url('El endpoint debe ser una URL válida (incluye https://).'),
+  endpoint: z.url('El endpoint debe ser una URL válida (incluye https://).'),
   region: z.string().optional(),
   inputLanguageIds: z.array(z.number()).min(1, 'Selecciona al menos un idioma de entrada.'),
   outputLanguageIds: z.array(z.number()).min(1, 'Selecciona al menos un idioma de salida.'),
@@ -24,10 +21,7 @@ const createSchema = z.object({
 
 const editSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.'),
-  endpoint: z
-    .string()
-    .trim()
-    .url('El endpoint debe ser una URL válida (incluye https://).'),
+  endpoint: z.url('El endpoint debe ser una URL válida (incluye https://).'),
   region: z.string().optional(),
   apiKey: z.string().optional(),
   isActive: z.boolean(),
