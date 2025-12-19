@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useNavigate } from '@tanstack/react-router'
-import { Alert, Button, Card, Checkbox, Input } from '../../../components/ui'
+import { Alert, Button, Card, Checkbox, Input, PasswordInput } from '../../../components/ui'
 import { BrandLogo } from '../../../components/BrandLogo'
 import { useAuthStore } from '../store/auth.store'
 import type { AppRoutePath } from '../../../routes/types'
@@ -133,9 +133,8 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
                 error={errors.username?.message}
               />
 
-              <Input
+              <PasswordInput
                 label="Contraseña"
-                type="password"
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isLoading}
@@ -149,9 +148,9 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
                   disabled={isLoading}
                   {...register('rememberMe')}
                 />
-                <button type="button" className="text-sm font-medium text-bsc-blue-medium hover:text-bsc-blue-dark dark:text-bsc-blue-medium-dark dark:hover:text-white">
+                {/* <button type="button" className="text-sm font-medium text-bsc-blue-medium hover:text-bsc-blue-dark dark:text-bsc-blue-medium-dark dark:hover:text-white">
                   ¿Olvidaste tu contraseña?
-                </button>
+                </button> */}
               </div>
 
               <Button type="submit" variant="primary" disabled={isLoading} className="w-full justify-center py-3 text-base">

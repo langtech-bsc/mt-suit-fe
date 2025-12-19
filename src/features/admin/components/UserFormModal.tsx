@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { Alert, Button, Input, Modal, Select, Switch } from '../../../components/ui'
+import { Alert, Button, Checkbox, Input, Modal, Select, Switch } from '../../../components/ui'
 import type { AdminUserRecord } from '../types'
 import { useAuthStore } from '../../auth/store/auth.store'
 
@@ -11,6 +11,10 @@ const createSchema = z.object({
   username: z.string().min(3, 'El usuario es obligatorio.'),
   email: z.email('Ingresa un email válido.'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
+  role: z
+    .string()
+    .min(1, 'Selecciona un rol.')
+    .refine((value) => value !== 'all', 'Selecciona un rol.'),
 })
 
 const editSchema = z.object({
@@ -19,6 +23,7 @@ const editSchema = z.object({
   password: z.string().optional(),
   isActive: z.boolean(),
   role: z.string().optional(),
+  isSuperuser: z.boolean().optional(),
 })
 
 export type CreateUserInput = z.infer<typeof createSchema>
@@ -50,6 +55,7 @@ export const UserFormModal = ({
   const isEdit = mode === 'edit'
   
   const currentUserLogged = useAuthStore((state) => state.user)
+  const hasRoleOptions = roleOptions.length > 0
 
   const itself = useMemo(() => {
     if (!isEdit || !user || !currentUserLogged) {
@@ -74,6 +80,7 @@ export const UserFormModal = ({
       username: '',
       email: '',
       password: '',
+      role: roleOptions[0] ?? '',
     },
   })
 
@@ -85,6 +92,7 @@ export const UserFormModal = ({
       password: '',
       isActive: Boolean(user?.isActive),
       role: defaultEditRole,
+      isSuperuser: Boolean(user?.isSuperuser),
     },
   })
 
@@ -126,6 +134,8 @@ export const UserFormModal = ({
       buttonText = 'Guardar cambios'
     }
     
+    const isCreateDisabled = !isEdit && !hasRoleOptions
+
     const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
@@ -134,7 +144,7 @@ export const UserFormModal = ({
       <Button
         variant="primary"
         onClick={isEdit ? handleSubmitEdit : handleSubmitCreate}
-        disabled={isSubmitting}
+        disabled={isSubmitting || isCreateDisabled}
       >
         {buttonText}
       </Button>
@@ -150,12 +160,31 @@ export const UserFormModal = ({
       footer={footer}
     >
       {errorMessage && <Alert variant="danger" title="No pudimos completar la acción" description={errorMessage} />}
+      {!isEdit && !hasRoleOptions && (
+        <Alert
+          variant="warning"
+          title="Sin roles disponibles"
+          description="No hay roles cargados para asignar. Refresca la vista o crea roles antes de crear usuarios."
+        />
+      )}
 
       {!isEdit ? (
         <form className="mt-4 space-y-4" onSubmit={handleSubmitCreate}>
           <Input label="Usuario" placeholder="usuario.corporativo" disabled={isSubmitting} {...createForm.register('username')} error={createForm.formState.errors.username?.message} />
           <Input label="Email" type="email" placeholder="user@example.com" disabled={isSubmitting} {...createForm.register('email')} error={createForm.formState.errors.email?.message} />
           <Input label="Contraseña" type="password" placeholder="••••••••" disabled={isSubmitting} {...createForm.register('password')} error={createForm.formState.errors.password?.message} />
+          <div className="w-full sm:w-64">
+            <Select
+              label="Rol"
+              value={createForm.watch('role') ?? ''}
+              onChange={(event) => createForm.setValue('role', event.target.value)}
+              disabled={isSubmitting || !hasRoleOptions}
+              helperText="Obligatorio. Se asigna justo después de crear el usuario."
+              options={[
+                ...roleOptions.map((value) => ({ value, label: value })),
+              ]}
+            />
+          </div>
         </form>
       ) : (
         <form className="mt-4 space-y-4" onSubmit={handleSubmitEdit}>
@@ -182,7 +211,7 @@ export const UserFormModal = ({
                 value={editForm.watch('role') ?? 'all'}
                 onChange={(event) => editForm.setValue('role', event.target.value)}
                 disabled={isSubmitting}
-                helperText="Selección disponible; persistencia pendiente de endpoint de roles."
+                helperText="Se asigna vía endpoint de roles."
                 options={[
                   { value: 'all', label: 'Sin rol' },
                   ...roleOptions.map((value) => ({ value, label: value })),
@@ -190,6 +219,18 @@ export const UserFormModal = ({
               />
             </div>
           </div>
+
+          {editForm.watch('role') === 'admin' && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <Checkbox
+                checked={Boolean(editForm.watch('isSuperuser'))}
+                onChange={(event) => editForm.setValue('isSuperuser', event.target.checked)}
+                disabled={isSubmitting}
+                label="Marcar como superuser"
+                helperText="Solo disponible para usuarios con rol admin. Habilita acceso completo a la consola."
+              />
+            </div>
+          )}
         </form>
       )}
     </Modal>

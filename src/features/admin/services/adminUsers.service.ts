@@ -98,7 +98,7 @@ class AdminUsersService {
 
   async update(
     userId: number,
-    payload: { username: string; email: string; is_active: boolean; password?: string },
+    payload: { username: string; email: string; is_active: boolean; password?: string; is_superuser?: boolean },
   ): Promise<AdminUserRecord> {
     try {
       const { data } = await apiClient.put<UsersApiResponse>(`${USERS_BASE_PATH}/${userId}`, payload)

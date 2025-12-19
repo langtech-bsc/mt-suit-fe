@@ -8,6 +8,7 @@ interface ProviderApiResponse {
   provider_type: string
   endpoint: string
   region: string
+  api_key?: string
   input_language_ids?: number[]
   output_language_ids?: number[]
   is_active: boolean
@@ -52,6 +53,7 @@ const mapProvider = (payload: ProviderApiResponse): ProviderRecord => ({
   providerType: payload.provider_type,
   endpoint: payload.endpoint,
   region: payload.region,
+  apiKey: payload.api_key ?? '',
   inputLanguageIds: payload.input_language_ids ?? [],
   outputLanguageIds: payload.output_language_ids ?? [],
   isActive: payload.is_active,
