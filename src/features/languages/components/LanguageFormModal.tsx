@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { z } from 'zod'
 import { Alert, Button, Input, Modal, Switch } from '../../../components/ui'
 import type { LanguageRecord, LanguageUpsertInput } from '../types'
@@ -44,7 +44,6 @@ export const LanguageFormModal = ({
   const [isActive, setIsActive] = useState(true)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [didInteract, setDidInteract] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -57,45 +56,62 @@ export const LanguageFormModal = ({
     setIsActive(language?.isActive ?? true)
     setValidationError(null)
     setFieldErrors({})
-    setDidInteract(false)
   }, [open, language])
 
-  const currentValues = useMemo(
-    () => ({
+  const validateField = useCallback((field: 'name' | 'isoCode' | 'nativeName' | 'sortOrder', value: unknown) => {
+    setFieldErrors((current) => {
+      const next = { ...current }
+
+      if (field === 'name') {
+        const validation = languageSchema.shape.name.safeParse(value)
+        if (!validation.success) {
+          next.name = validation.error.issues[0]?.message ?? 'El nombre del idioma es obligatorio.'
+        } else {
+          delete next.name
+        }
+        return next
+      }
+
+      if (field === 'isoCode') {
+        const validation = languageSchema.shape.isoCode.safeParse(value)
+        if (!validation.success) {
+          next.isoCode = validation.error.issues[0]?.message ?? 'El código ISO es obligatorio.'
+        } else {
+          delete next.isoCode
+        }
+        return next
+      }
+
+      if (field === 'nativeName') {
+        const validation = languageSchema.shape.nativeName.safeParse(value)
+        if (!validation.success) {
+          next.nativeName = validation.error.issues[0]?.message ?? 'Revisa el nombre nativo.'
+        } else {
+          delete next.nativeName
+        }
+        return next
+      }
+
+      const validation = languageSchema.shape.sortOrder.safeParse(value)
+      if (!validation.success) {
+        next.sortOrder = validation.error.issues[0]?.message ?? 'El orden debe ser 0 o mayor.'
+      } else {
+        delete next.sortOrder
+      }
+      return next
+    })
+  }, [])
+
+  const handleSubmit = () => {
+    setValidationError(null)
+
+    const validation = languageSchema.safeParse({
       name,
       isoCode,
       nativeName,
       sortOrder,
       isActive,
-    }),
-    [isActive, isoCode, name, nativeName, sortOrder],
-  )
-
-  useEffect(() => {
-    if (!open || !didInteract) {
-      return
-    }
-
-    const validation = languageSchema.safeParse(currentValues)
-    if (validation.success) {
-      setFieldErrors({})
-      return
-    }
-
-    const next: Record<string, string> = {}
-    for (const issue of validation.error.issues) {
-      const field = issue.path[0]
-      if (typeof field === 'string' && !next[field]) {
-        next[field] = issue.message
-      }
-    }
-    setFieldErrors(next)
-  }, [currentValues, didInteract, open])
-
-  const handleSubmit = () => {
-    setValidationError(null)
-    setDidInteract(true)
-    const validation = languageSchema.safeParse(currentValues)
+    })
 
     if (!validation.success) {
       setValidationError(validation.error.issues[0]?.message ?? 'Revisa los datos del formulario.')
@@ -143,8 +159,9 @@ export const LanguageFormModal = ({
           placeholder="Spanish"
           value={name}
           onChange={(event) => {
-            setDidInteract(true)
-            setName(event.target.value)
+            const nextValue = event.target.value
+            setName(nextValue)
+            validateField('name', nextValue)
           }}
           disabled={isSubmitting}
           error={fieldErrors.name}
@@ -154,8 +171,9 @@ export const LanguageFormModal = ({
           placeholder="es"
           value={isoCode}
           onChange={(event) => {
-            setDidInteract(true)
-            setIsoCode(event.target.value)
+            const nextValue = event.target.value
+            setIsoCode(nextValue)
+            validateField('isoCode', nextValue)
           }}
           disabled={isSubmitting}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: es, en, pt-BR'}
@@ -166,8 +184,9 @@ export const LanguageFormModal = ({
           placeholder="Español"
           value={nativeName}
           onChange={(event) => {
-            setDidInteract(true)
-            setNativeName(event.target.value)
+            const nextValue = event.target.value
+            setNativeName(nextValue)
+            validateField('nativeName', nextValue)
           }}
           disabled={isSubmitting}
           error={fieldErrors.nativeName}
@@ -177,8 +196,9 @@ export const LanguageFormModal = ({
           type="number"
           value={String(sortOrder)}
           onChange={(event) => {
-            setDidInteract(true)
-            setSortOrder(Number(event.target.value ?? 0))
+            const nextValue = Number(event.target.value ?? 0)
+            setSortOrder(nextValue)
+            validateField('sortOrder', nextValue)
           }}
           disabled={isSubmitting}
           error={fieldErrors.sortOrder}
@@ -191,7 +211,6 @@ export const LanguageFormModal = ({
           description="Los idiomas deshabilitados no aparecen en selectores."
           checked={isActive}
           onChange={(event) => {
-            setDidInteract(true)
             setIsActive(event.target.checked)
           }}
           disabled={isSubmitting}

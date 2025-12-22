@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { Alert, Button, Checkbox, Input, Modal, PasswordInput, Switch, Textarea } from '../../../components/ui'
 import { useLanguagesQuery } from '../../languages/queries/useLanguagesQuery'
@@ -84,6 +84,7 @@ export const ProviderFormModal = ({
   const isEdit = mode === 'edit'
   const { isLoading: isLoadingLanguages, error: languagesError } = useLanguagesQuery()
   const allLanguages = useLanguagesStore((state) => state.languages)
+  const schema = useMemo(() => (isEdit ? editSchema : createSchema), [isEdit])
 
   const languages = useMemo(() => {
     return allLanguages
@@ -106,7 +107,6 @@ export const ProviderFormModal = ({
   const [outputFilter, setOutputFilter] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [didInteract, setDidInteract] = useState(false)
 
   const title = useMemo(() => (isEdit ? 'Editar proveedor' : 'Añadir proveedor'), [isEdit])
 
@@ -129,60 +129,45 @@ export const ProviderFormModal = ({
     setOutputFilter('')
     setValidationError(null)
     setFieldErrors({})
-    setDidInteract(false)
   }, [open, provider])
 
-  useEffect(() => {
-    if (!open || !didInteract) {
-      return
-    }
-
-    const configValidation = parseConfig(configRaw)
-    const configError = configValidation.ok ? undefined : configValidation.message
-
-    const schema = isEdit ? editSchema : createSchema
-    const validation = schema.safeParse({
-      name,
-      providerType,
-      endpoint,
-      region,
-      inputLanguageIds,
-      outputLanguageIds,
-      apiKey,
-      isActive,
-      isDefault,
-    })
-
-    const next: Record<string, string> = {}
-    if (!validation.success) {
-      for (const issue of validation.error.issues) {
-        const field = issue.path[0]
-        if (typeof field === 'string' && !next[field]) {
-          next[field] = issue.message
-        }
+  const setFieldError = useCallback((field: string, message?: string) => {
+    setFieldErrors((current) => {
+      const next = { ...current }
+      if (message) {
+        next[field] = message
+      } else {
+        delete next[field]
       }
-    }
+      return next
+    })
+  }, [])
 
-    if (configError) {
-      next.configuration = configError
-    }
+  const validateSchemaField = useCallback(
+    (field: string, value: unknown, fallbackMessage: string) => {
+      const shape = schema.shape as Record<string, z.ZodTypeAny>
+      const validator = shape[field]
+      if (!validator) {
+        setFieldError(field, undefined)
+        return
+      }
+      const validation = validator.safeParse(value)
+      if (!validation.success) {
+        setFieldError(field, validation.error.issues[0]?.message ?? fallbackMessage)
+        return
+      }
+      setFieldError(field, undefined)
+    },
+    [schema.shape, setFieldError],
+  )
 
-    setFieldErrors(next)
-  }, [
-    apiKey,
-    configRaw,
-    didInteract,
-    endpoint,
-    inputLanguageIds,
-    isActive,
-    isDefault,
-    isEdit,
-    name,
-    open,
-    outputLanguageIds,
-    providerType,
-    region,
-  ])
+  const validateConfig = useCallback(
+    (raw: string) => {
+      const configValidation = parseConfig(raw)
+      setFieldError('configuration', configValidation.ok ? undefined : configValidation.message)
+    },
+    [setFieldError],
+  )
 
   const filteredInputLanguages = useMemo(() => {
     const query = normalize(inputFilter)
@@ -220,40 +205,52 @@ export const ProviderFormModal = ({
 
   const handleSubmit = () => {
     setValidationError(null)
-    setDidInteract(true)
 
     const configValidation = parseConfig(configRaw)
-    if (!configValidation.ok) {
-      setValidationError(configValidation.message)
+    const validation = schema.safeParse({
+      name,
+      providerType,
+      endpoint,
+      region,
+      inputLanguageIds,
+      outputLanguageIds,
+      apiKey,
+      isActive,
+      isDefault,
+    })
+
+    if (!configValidation.ok || !validation.success) {
+      const configErrorMessage = configValidation.ok ? undefined : configValidation.message
+      const nextErrors: Record<string, string> = {}
+      if (!validation.success) {
+        for (const issue of validation.error.issues) {
+          const field = issue.path[0]
+          if (typeof field === 'string' && !nextErrors[field]) {
+            nextErrors[field] = issue.message
+          }
+        }
+      }
+      if (!configValidation.ok) {
+        nextErrors.configuration = configValidation.message
+      }
+      setFieldErrors(nextErrors)
+      setValidationError(
+        validation.success
+          ? (configErrorMessage ?? 'Revisa el formulario.')
+          : (validation.error.issues[0]?.message ?? configErrorMessage ?? 'Revisa el formulario.'),
+      )
       return
     }
 
     if (!isEdit) {
-      const validation = createSchema.safeParse({
-        name,
-        providerType,
-        endpoint,
-        region,
-        inputLanguageIds,
-        outputLanguageIds,
-        apiKey,
-        isActive,
-        isDefault,
-      })
-
-      if (!validation.success) {
-        setValidationError(validation.error.issues[0]?.message ?? 'Revisa el formulario.')
-        return
-      }
-
       onCreate({
         name: validation.data.name,
-        providerType: validation.data.providerType,
+        providerType: (validation.data as z.infer<typeof createSchema>).providerType,
         endpoint: validation.data.endpoint,
         region: validation.data.region?.trim() ?? '',
         inputLanguageIds: validation.data.inputLanguageIds,
         outputLanguageIds: validation.data.outputLanguageIds,
-        apiKey: validation.data.apiKey,
+        apiKey: (validation.data as z.infer<typeof createSchema>).apiKey,
         configuration: configValidation.value,
         isActive: validation.data.isActive,
         isDefault: validation.data.isDefault,
@@ -265,27 +262,13 @@ export const ProviderFormModal = ({
       return
     }
 
-    const validation = editSchema.safeParse({
-      name,
-      endpoint,
-      region,
-      apiKey,
-      isActive,
-      isDefault,
-      inputLanguageIds,
-      outputLanguageIds,
-    })
-
-    if (!validation.success) {
-      setValidationError(validation.error.issues[0]?.message ?? 'Revisa el formulario.')
-      return
-    }
-
     onEdit(provider.id, {
       name: validation.data.name,
       endpoint: validation.data.endpoint,
       region: validation.data.region?.trim() ?? '',
-      apiKey: validation.data.apiKey?.trim() ? validation.data.apiKey.trim() : undefined,
+      apiKey: (validation.data as z.infer<typeof editSchema>).apiKey?.trim()
+        ? (validation.data as z.infer<typeof editSchema>).apiKey?.trim()
+        : undefined,
       configuration: configValidation.value,
       isActive: validation.data.isActive,
       isDefault: validation.data.isDefault,
@@ -325,8 +308,9 @@ export const ProviderFormModal = ({
           label="Nombre"
           value={name}
           onChange={(e) => {
-            setDidInteract(true)
-            setName(e.target.value)
+            const nextValue = e.target.value
+            setName(nextValue)
+            validateSchemaField('name', nextValue, 'El nombre es obligatorio.')
           }}
           disabled={isSubmitting}
           error={fieldErrors.name}
@@ -336,8 +320,11 @@ export const ProviderFormModal = ({
           placeholder="openai / google"
           value={providerType}
           onChange={(e) => {
-            setDidInteract(true)
-            setProviderType(e.target.value)
+            const nextValue = e.target.value
+            setProviderType(nextValue)
+            if (!isEdit) {
+              validateSchemaField('providerType', nextValue, 'El tipo de proveedor es obligatorio.')
+            }
           }}
           disabled={isSubmitting}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: openai, google'}
@@ -348,8 +335,9 @@ export const ProviderFormModal = ({
           placeholder="https://api.example.com"
           value={endpoint}
           onChange={(e) => {
-            setDidInteract(true)
-            setEndpoint(e.target.value)
+            const nextValue = e.target.value
+            setEndpoint(nextValue)
+            validateSchemaField('endpoint', nextValue, 'El endpoint debe ser una URL válida (incluye https://).')
           }}
           disabled={isSubmitting}
           helperText="Debe ser una URL válida (incluye https://)."
@@ -359,8 +347,8 @@ export const ProviderFormModal = ({
           label="Región"
           value={region}
           onChange={(e) => {
-            setDidInteract(true)
-            setRegion(e.target.value)
+            const nextValue = e.target.value
+            setRegion(nextValue)
           }}
           disabled={isSubmitting}
           error={fieldErrors.region}
@@ -371,8 +359,9 @@ export const ProviderFormModal = ({
           placeholder={isEdit ? 'Dejar vacío para mantener' : '••••••••'}
           value={apiKey}
           onChange={(e) => {
-            setDidInteract(true)
-            setApiKey(e.target.value)
+            const nextValue = e.target.value
+            setApiKey(nextValue)
+            validateSchemaField('apiKey', nextValue, 'El API key es obligatorio.')
           }}
           disabled={isSubmitting}
           error={fieldErrors.apiKey}
@@ -382,8 +371,9 @@ export const ProviderFormModal = ({
           label="Configuración (JSON)"
           value={configRaw}
           onChange={(e) => {
-            setDidInteract(true)
-            setConfigRaw(e.target.value)
+            const nextValue = e.target.value
+            setConfigRaw(nextValue)
+            validateConfig(nextValue)
           }}
           disabled={isSubmitting}
           helperText={'Debe ser un objeto JSON. Ej: { "model": "gpt-4o-mini" }'}
@@ -417,10 +407,11 @@ export const ProviderFormModal = ({
                 checked={allInputSelected}
                 indeterminate={inputIndeterminate}
                 onChange={() => {
-                  setDidInteract(true)
-                  setInputLanguageIds(allInputSelected ? [] : allLanguageIds)
+                  const nextValue = allInputSelected ? [] : allLanguageIds
+                  setInputLanguageIds(nextValue)
+                  validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
                 }}
-                disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
+                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
               />
             </div>
             <Input
@@ -441,8 +432,9 @@ export const ProviderFormModal = ({
                   }
                   checked={inputLanguageIds.includes(lang.id)}
                   onChange={() => {
-                    setDidInteract(true)
-                    setInputLanguageIds((current) => toggleNumberInList(current, lang.id))
+                    const nextValue = toggleNumberInList(inputLanguageIds, lang.id)
+                    setInputLanguageIds(nextValue)
+                    validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
                   }}
                   disabled={isSubmitting || isLoadingLanguages}
                 />
@@ -461,10 +453,11 @@ export const ProviderFormModal = ({
                 checked={allOutputSelected}
                 indeterminate={outputIndeterminate}
                 onChange={() => {
-                  setDidInteract(true)
-                  setOutputLanguageIds(allOutputSelected ? [] : allLanguageIds)
+                  const nextValue = allOutputSelected ? [] : allLanguageIds
+                  setOutputLanguageIds(nextValue)
+                  validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
                 }}
-                disabled={isSubmitting ?? isLoadingLanguages ?? languages.length === 0}
+                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
               />
             </div>
             <Input
@@ -485,8 +478,9 @@ export const ProviderFormModal = ({
                   }
                   checked={outputLanguageIds.includes(lang.id)}
                   onChange={() => {
-                    setDidInteract(true)
-                    setOutputLanguageIds((current) => toggleNumberInList(current, lang.id))
+                    const nextValue = toggleNumberInList(outputLanguageIds, lang.id)
+                    setOutputLanguageIds(nextValue)
+                    validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
                   }}
                   disabled={isSubmitting || isLoadingLanguages}
                 />
@@ -507,7 +501,6 @@ export const ProviderFormModal = ({
           label={isActive ? 'Proveedor activo' : 'Proveedor deshabilitado'}
           checked={isActive}
           onChange={(event) => {
-            setDidInteract(true)
             setIsActive(event.target.checked)
           }}
           disabled={isSubmitting}
@@ -516,7 +509,6 @@ export const ProviderFormModal = ({
           label={isDefault ? 'Proveedor por defecto' : 'No es por defecto'}
           checked={isDefault}
           onChange={(event) => {
-            setDidInteract(true)
             setIsDefault(event.target.checked)
           }}
           disabled={isSubmitting}
