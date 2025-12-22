@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from 'react'
-import type { FieldErrors, Resolver } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Alert, Button, Checkbox, Input, Modal, Select, Switch } from '../../../components/ui'
@@ -8,29 +7,6 @@ import type { AdminUserRecord } from '../types'
 import { useAuthStore } from '../../auth/store/auth.store'
 
 type Mode = 'create' | 'edit'
-
-const makeZodResolver =
-  <TValues extends Record<string, unknown>>(schema: z.ZodType<TValues>): Resolver<TValues> =>
-  async (values) => {
-    const parsed = schema.safeParse(values)
-    if (parsed.success) {
-      return { values: parsed.data, errors: {} }
-    }
-
-    const errors: FieldErrors<TValues> = {} as any
-    for (const issue of parsed.error.issues) {
-      const field = issue.path[0]
-      if (typeof field !== 'string') {
-        continue
-      }
-      if ((errors as any)[field]) {
-        continue
-      }
-      ;(errors as any)[field] = { type: 'validation', message: issue.message }
-    }
-
-    return { values: {} as any, errors }
-  }
 
 const createSchema = z.object({
   username: z.string().min(1, 'El usuario es obligatorio.'),
@@ -78,7 +54,7 @@ export const UserFormModal = ({
   onEdit,
 }: UserFormModalProps) => {
   const isEdit = mode === 'edit'
-  
+
   const currentUserLogged = useAuthStore((state) => state.user)
   const hasRoleOptions = roleOptions.length > 0
   const createRoleFallback = roleOptions[0] ?? ''
@@ -103,7 +79,6 @@ export const UserFormModal = ({
   const createForm = useForm<CreateUserInput>({
     mode: 'onChange',
     reValidateMode: 'onChange',
-    resolver: makeZodResolver(createSchema),
     defaultValues: {
       username: '',
       email: '',
@@ -115,7 +90,6 @@ export const UserFormModal = ({
   const editForm = useForm<EditUserInput>({
     mode: 'onChange',
     reValidateMode: 'onChange',
-    resolver: makeZodResolver(editSchema),
     defaultValues: {
       username: '',
       email: '',
@@ -168,27 +142,43 @@ export const UserFormModal = ({
   }, [editForm, isEdit, open, watchedEditRole])
 
   const handleSubmitCreate = createForm.handleSubmit((values) => {
-    onCreate(values)
+    const validation = createSchema.safeParse(values)
+    if (!validation.success) {
+      const first = validation.error.issues[0]
+      if (first?.path?.[0] && typeof first.path[0] === 'string') {
+        createForm.setError(first.path[0] as keyof CreateUserInput, { type: 'manual', message: first.message })
+      }
+      return
+    }
+    onCreate(validation.data)
   })
 
   const handleSubmitEdit = editForm.handleSubmit((values) => {
     if (!user) {
       return
     }
-    onEdit(user.id, values)
-    })
-    
-    let buttonText = 'Crear usuario'
-    if (isSubmitting) {
-      buttonText = 'Guardando…'
-    } else if (isEdit) {
-      buttonText = 'Guardar cambios'
+    const validation = editSchema.safeParse(values)
+    if (!validation.success) {
+      const first = validation.error.issues[0]
+      if (first?.path?.[0] && typeof first.path[0] === 'string') {
+        editForm.setError(first.path[0] as keyof EditUserInput, { type: 'manual', message: first.message })
+      }
+      return
     }
-    
-    const isCreateDisabled = !isEdit && !hasRoleOptions
-    const isEditDisabled = isEdit && !hasRoleOptions
+    onEdit(user.id, validation.data)
+  })
 
-    const footer = (
+  let buttonText = 'Crear usuario'
+  if (isSubmitting) {
+    buttonText = 'Guardando…'
+  } else if (isEdit) {
+    buttonText = 'Guardar cambios'
+  }
+
+  const isCreateDisabled = !isEdit && !hasRoleOptions
+  const isEditDisabled = isEdit && !hasRoleOptions
+
+  const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancelar
@@ -229,52 +219,118 @@ export const UserFormModal = ({
 
       {!isEdit ? (
         <form className="mt-4 space-y-4" onSubmit={handleSubmitCreate}>
-          <Input label="Usuario" placeholder="usuario.corporativo" disabled={isSubmitting} {...createForm.register('username')} error={createForm.formState.errors.username?.message} />
-          <Input label="Email" type="email" placeholder="user@example.com" disabled={isSubmitting} {...createForm.register('email')} error={createForm.formState.errors.email?.message} />
-          <Input label="Contraseña" type="password" placeholder="••••••••" disabled={isSubmitting} {...createForm.register('password')} error={createForm.formState.errors.password?.message} />
+          <input
+            type="hidden"
+            {...createForm.register('role', {
+              validate: (value) => createSchema.shape.role.safeParse(value).success || 'Selecciona un rol.',
+            })}
+          />
+          <Input
+            label="Usuario"
+            placeholder="usuario.corporativo"
+            disabled={isSubmitting}
+            {...createForm.register('username', {
+              validate: (value) => createSchema.shape.username.safeParse(value).success || 'El usuario es obligatorio.',
+            })}
+            error={createForm.formState.errors.username?.message}
+          />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="user@example.com"
+            disabled={isSubmitting}
+            {...createForm.register('email', {
+              validate: (value) => createSchema.shape.email.safeParse(value).success || 'Ingresa un email válido.',
+            })}
+            error={createForm.formState.errors.email?.message}
+          />
+          <Input
+            label="Contraseña"
+            type="password"
+            placeholder="••••••••"
+            disabled={isSubmitting}
+            {...createForm.register('password', {
+              validate: (value) =>
+                createSchema.shape.password.safeParse(value).success || 'La contraseña debe tener al menos 6 caracteres.',
+            })}
+            error={createForm.formState.errors.password?.message}
+          />
           <div className="w-full sm:w-64">
             <Select
               label="Rol"
               value={createForm.watch('role') ?? ''}
-              onChange={(event) => createForm.setValue('role', event.target.value)}
+              onChange={(event) =>
+                createForm.setValue('role', event.target.value, { shouldDirty: true, shouldValidate: true })
+              }
               disabled={isSubmitting || !hasRoleOptions}
               helperText="Obligatorio. Se asigna justo después de crear el usuario."
               options={[
                 ...roleOptions.map((value) => ({ value, label: value })),
               ]}
             />
+            {createForm.formState.errors.role?.message && (
+              <p className="mt-1 text-sm text-red-600">{createForm.formState.errors.role.message}</p>
+            )}
           </div>
         </form>
       ) : (
         <form className="mt-4 space-y-4" onSubmit={handleSubmitEdit}>
-          <Input label="Usuario" disabled={isSubmitting} {...editForm.register('username')} error={editForm.formState.errors.username?.message} />
-          <Input label="Email" type="email" disabled={isSubmitting} {...editForm.register('email')} error={editForm.formState.errors.email?.message} />
+          <input
+            type="hidden"
+            {...editForm.register('role', {
+              validate: (value) => editSchema.shape.role.safeParse(value).success || 'Selecciona un rol.',
+            })}
+          />
+          <Input
+            label="Usuario"
+            disabled={isSubmitting}
+            {...editForm.register('username', {
+              validate: (value) => editSchema.shape.username.safeParse(value).success || 'El usuario es obligatorio.',
+            })}
+            error={editForm.formState.errors.username?.message}
+          />
+          <Input
+            label="Email"
+            type="email"
+            disabled={isSubmitting}
+            {...editForm.register('email', {
+              validate: (value) => editSchema.shape.email.safeParse(value).success || 'Ingresa un email válido.',
+            })}
+            error={editForm.formState.errors.email?.message}
+          />
           <Input
             label="Nueva contraseña (opcional)"
             type="password"
             placeholder="Dejar vacío para mantener"
             disabled={isSubmitting}
-            {...editForm.register('password')}
+            {...editForm.register('password', { validate: () => true })}
             error={editForm.formState.errors.password?.message}
           />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Switch
               label={editForm.watch('isActive') ? 'Cuenta activa' : 'Cuenta inactiva'}
               checked={editForm.watch('isActive')}
-              onChange={(event) => editForm.setValue('isActive', event.target.checked)}
+              onChange={(event) =>
+                editForm.setValue('isActive', event.target.checked, { shouldDirty: true, shouldValidate: true })
+              }
               disabled={isSubmitting || itself}
             />
             <div className="w-full sm:w-64">
               <Select
                 label="Rol"
                 value={editForm.watch('role') ?? ''}
-                onChange={(event) => editForm.setValue('role', event.target.value)}
+                onChange={(event) =>
+                  editForm.setValue('role', event.target.value, { shouldDirty: true, shouldValidate: true })
+                }
                 disabled={isSubmitting || !hasRoleOptions}
                 helperText="Se asigna vía endpoint de roles."
                 options={[
                   ...roleOptions.map((value) => ({ value, label: value })),
                 ]}
               />
+              {editForm.formState.errors.role?.message && (
+                <p className="mt-1 text-sm text-red-600">{editForm.formState.errors.role.message}</p>
+              )}
             </div>
           </div>
 
@@ -282,7 +338,9 @@ export const UserFormModal = ({
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
               <Checkbox
                 checked={Boolean(editForm.watch('isSuperuser'))}
-                onChange={(event) => editForm.setValue('isSuperuser', event.target.checked)}
+                onChange={(event) =>
+                  editForm.setValue('isSuperuser', event.target.checked, { shouldDirty: true, shouldValidate: true })
+                }
                 disabled={isSubmitting}
                 label="Marcar como superuser"
                 helperText="Solo disponible para usuarios con rol admin. Habilita acceso completo a la consola."
