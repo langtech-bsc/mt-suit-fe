@@ -151,6 +151,22 @@ export const UserFormModal = ({
     })
   }, [createForm, createRoleFallback, defaultEditRole, editForm, isEdit, open, user])
 
+  const watchedEditRole = editForm.watch('role')
+
+  useEffect(() => {
+    if (!open || !isEdit) {
+      return
+    }
+
+    if (watchedEditRole === 'admin') {
+      return
+    }
+
+    if (editForm.getValues('isSuperuser')) {
+      editForm.setValue('isSuperuser', false, { shouldDirty: true, shouldValidate: true })
+    }
+  }, [editForm, isEdit, open, watchedEditRole])
+
   const handleSubmitCreate = createForm.handleSubmit((values) => {
     onCreate(values)
   })

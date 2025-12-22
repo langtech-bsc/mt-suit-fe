@@ -157,7 +157,7 @@ export const LanguageFormModal = ({
             setDidInteract(true)
             setIsoCode(event.target.value)
           }}
-          disabled={isSubmitting || isEdit}
+          disabled={isSubmitting}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: es, en, pt-BR'}
           error={fieldErrors.isoCode}
         />
