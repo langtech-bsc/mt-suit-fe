@@ -331,7 +331,7 @@ export const AdminUsersView = () => {
       return
     }
 
-    const isSuperuserUpdate = nextRoleName === 'admin' ? Boolean(payload.isSuperuser) : undefined
+    const isSuperuserUpdate = nextRoleName === 'admin' ? Boolean(payload.isSuperuser) : false
 
     updateUserMutation.mutate({
       userId,
@@ -340,7 +340,7 @@ export const AdminUsersView = () => {
         email: payload.email,
         is_active: payload.isActive,
         password,
-        ...(typeof isSuperuserUpdate === 'boolean' ? { is_superuser: isSuperuserUpdate } : {}),
+        is_superuser: isSuperuserUpdate,
       },
       roleId: shouldAssignRole ? roleId : undefined,
       roleName: shouldAssignRole ? nextRoleName : undefined,
@@ -485,7 +485,7 @@ export const AdminUsersView = () => {
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
                               {record.isActive ? 'Activo' : 'Inactivo'}
                             </Badge>
-                            {record.isSuperuser && (
+                            {record.isSuperuser && record.roles[0]?.name === "admin" && (
                               <Badge variant="outline" size="sm">
                                 Superuser
                               </Badge>

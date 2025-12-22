@@ -339,7 +339,7 @@ export const ProviderFormModal = ({
             setDidInteract(true)
             setProviderType(e.target.value)
           }}
-          disabled={isSubmitting || isEdit}
+          disabled={isSubmitting}
           helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: openai, google'}
           error={fieldErrors.providerType}
         />
