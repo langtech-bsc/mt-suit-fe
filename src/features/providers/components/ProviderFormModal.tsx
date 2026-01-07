@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { Alert, Button, Checkbox, Input, Modal, PasswordInput, Switch, Textarea } from '../../../components/ui'
 import { useLanguagesQuery } from '../../languages/queries/useLanguagesQuery'
@@ -7,9 +7,22 @@ import type { ProviderConfiguration, ProviderCreateInput, ProviderRecord, Provid
 
 type Mode = 'create' | 'edit'
 
+type LanguageOption = {
+  id: number
+  name: string
+  isoCode: string
+}
+
 const createSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.'),
-  providerType: z.string().min(2, 'El tipo de proveedor es obligatorio.'),
+  providerType: z
+    .string()
+    .min(2, 'El tipo de proveedor es obligatorio.')
+    .transform((value) => value.trim().toLowerCase())
+    .refine(
+      (value) => ['azure', 'google', 'deepl', 'openai', 'huggingface'].includes(value),
+      'Proveedor inválido. Usa: azure, google, deepl, openai o huggingface.',
+    ),
   endpoint: z.url('El endpoint debe ser una URL válida (incluye https://).'),
   region: z.string().optional(),
   inputLanguageIds: z.array(z.number()).min(1, 'Selecciona al menos un idioma de entrada.'),
@@ -71,6 +84,63 @@ interface ProviderFormModalProps {
   onEdit: (providerId: number, payload: ProviderUpdateInput) => void
 }
 
+const LanguagePickerPanel = memo(function LanguagePickerPanel(
+  props: Readonly<{
+    title: string
+    filterValue: string
+    onFilterChange: (next: string) => void
+    languages: LanguageOption[]
+    selectedIds: number[]
+    onToggle: (id: number) => void
+    allSelected: boolean
+    indeterminate: boolean
+    onToggleAll: () => void
+    disabled: boolean
+    isLoading: boolean
+    isEmptyDisabled?: boolean
+  }>,
+) {
+  return (
+    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{props.title}</p>
+        <Checkbox
+          label="Todos"
+          checked={props.allSelected}
+          indeterminate={props.indeterminate}
+          onChange={props.onToggleAll}
+          disabled={props.disabled || props.isLoading || props.isEmptyDisabled === true}
+        />
+      </div>
+      <Input
+        placeholder="Buscar…"
+        value={props.filterValue}
+        onChange={(e) => props.onFilterChange(e.target.value)}
+        disabled={props.disabled || props.isLoading}
+      />
+      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+        {props.languages.map((lang) => (
+          <Checkbox
+            key={lang.id}
+            label={
+              <span className="flex items-center justify-between gap-2">
+                <span>{lang.name}</span>
+                <span className="text-xs text-gray-500 dark:text-slate-400">{lang.isoCode}</span>
+              </span>
+            }
+            checked={props.selectedIds.includes(lang.id)}
+            onChange={() => props.onToggle(lang.id)}
+            disabled={props.disabled || props.isLoading}
+          />
+        ))}
+        {!props.isLoading && props.languages.length === 0 && (
+          <p className="text-xs text-gray-500 dark:text-slate-400">Sin coincidencias.</p>
+        )}
+      </div>
+    </div>
+  )
+})
+
 export const ProviderFormModal = ({
   open,
   mode,
@@ -116,7 +186,7 @@ export const ProviderFormModal = ({
     }
 
     setName(provider?.name ?? '')
-    setProviderType(provider?.providerType ?? '')
+    setProviderType(provider?.providerType?.toLowerCase?.() ?? '')
     setEndpoint(provider?.endpoint ?? '')
     setRegion(provider?.region ?? '')
     setApiKey(provider?.apiKey ?? '')
@@ -201,6 +271,36 @@ export const ProviderFormModal = ({
   const outputIndeterminate = useMemo(
     () => outputLanguageIds.length > 0 && !allOutputSelected,
     [allOutputSelected, outputLanguageIds.length],
+  )
+
+  const handleToggleAllInput = useCallback(() => {
+    const nextValue = allInputSelected ? [] : allLanguageIds
+    setInputLanguageIds(nextValue)
+    validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
+  }, [allInputSelected, allLanguageIds, validateSchemaField])
+
+  const handleToggleInput = useCallback(
+    (languageId: number) => {
+      const nextValue = toggleNumberInList(inputLanguageIds, languageId)
+      setInputLanguageIds(nextValue)
+      validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
+    },
+    [inputLanguageIds, validateSchemaField],
+  )
+
+  const handleToggleAllOutput = useCallback(() => {
+    const nextValue = allOutputSelected ? [] : allLanguageIds
+    setOutputLanguageIds(nextValue)
+    validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
+  }, [allLanguageIds, allOutputSelected, validateSchemaField])
+
+  const handleToggleOutput = useCallback(
+    (languageId: number) => {
+      const nextValue = toggleNumberInList(outputLanguageIds, languageId)
+      setOutputLanguageIds(nextValue)
+      validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
+    },
+    [outputLanguageIds, validateSchemaField],
   )
 
   type ProviderValidationResult =
@@ -351,14 +451,14 @@ export const ProviderFormModal = ({
           placeholder="openai / google"
           value={providerType}
           onChange={(e) => {
-            const nextValue = e.target.value
+            const nextValue = e.target.value.toLowerCase()
             setProviderType(nextValue)
             if (!isEdit) {
               validateSchemaField('providerType', nextValue, 'El tipo de proveedor es obligatorio.')
             }
           }}
-          disabled={isSubmitting}
-          helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: openai, google'}
+          disabled={isSubmitting || isEdit} // NOSONAR
+          helperText={isEdit ? 'No se puede cambiar en edición.' : 'Valores: azure, google, deepl, openai, huggingface'}
           error={fieldErrors.providerType}
         />
         <Input
@@ -430,97 +530,35 @@ export const ProviderFormModal = ({
           />
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Idiomas de entrada</p>
-              <Checkbox
-                label="Todos"
-                checked={allInputSelected}
-                indeterminate={inputIndeterminate}
-                onChange={() => {
-                  const nextValue = allInputSelected ? [] : allLanguageIds
-                  setInputLanguageIds(nextValue)
-                  validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
-                }}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0} // NOSONAR
-              />
-            </div>
-            <Input
-              placeholder="Buscar…"
-              value={inputFilter}
-              onChange={(e) => setInputFilter(e.target.value)}
-              disabled={isSubmitting || isLoadingLanguages}
-            />
-            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-              {filteredInputLanguages.map((lang) => (
-                <Checkbox
-                  key={`in-${lang.id}`}
-                  label={
-                    <span className="flex items-center justify-between gap-2">
-                      <span>{lang.name}</span>
-                      <span className="text-xs text-gray-500 dark:text-slate-400">{lang.isoCode}</span>
-                    </span>
-                  }
-                  checked={inputLanguageIds.includes(lang.id)}
-                  onChange={() => {
-                    const nextValue = toggleNumberInList(inputLanguageIds, lang.id)
-                    setInputLanguageIds(nextValue)
-                    validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
-                  }}
-                  disabled={isSubmitting || isLoadingLanguages}
-                />
-              ))}
-              {!isLoadingLanguages && filteredInputLanguages.length === 0 && (
-                <p className="text-xs text-gray-500 dark:text-slate-400">Sin coincidencias.</p>
-              )}
-            </div>
-          </div>
+          <LanguagePickerPanel
+            title="Idiomas de entrada"
+            filterValue={inputFilter}
+            onFilterChange={setInputFilter}
+            languages={filteredInputLanguages}
+            selectedIds={inputLanguageIds}
+            onToggle={handleToggleInput}
+            allSelected={allInputSelected}
+            indeterminate={inputIndeterminate}
+            onToggleAll={handleToggleAllInput}
+            disabled={isSubmitting}
+            isLoading={isLoadingLanguages}
+            isEmptyDisabled={languages.length === 0}
+          />
 
-          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-950/30">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Idiomas de salida</p>
-              <Checkbox
-                label="Todos"
-                checked={allOutputSelected}
-                indeterminate={outputIndeterminate}
-                onChange={() => {
-                  const nextValue = allOutputSelected ? [] : allLanguageIds
-                  setOutputLanguageIds(nextValue)
-                  validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
-                }}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0} // NOSONAR
-              />
-            </div>
-            <Input
-              placeholder="Buscar…"
-              value={outputFilter}
-              onChange={(e) => setOutputFilter(e.target.value)}
-              disabled={isSubmitting || isLoadingLanguages}
-            />
-            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-              {filteredOutputLanguages.map((lang) => (
-                <Checkbox
-                  key={`out-${lang.id}`}
-                  label={
-                    <span className="flex items-center justify-between gap-2">
-                      <span>{lang.name}</span>
-                      <span className="text-xs text-gray-500 dark:text-slate-400">{lang.isoCode}</span>
-                    </span>
-                  }
-                  checked={outputLanguageIds.includes(lang.id)}
-                  onChange={() => {
-                    const nextValue = toggleNumberInList(outputLanguageIds, lang.id)
-                    setOutputLanguageIds(nextValue)
-                    validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
-                  }}
-                  disabled={isSubmitting || isLoadingLanguages}
-                />
-              ))}
-              {!isLoadingLanguages && filteredOutputLanguages.length === 0 && (
-                <p className="text-xs text-gray-500 dark:text-slate-400">Sin coincidencias.</p>
-              )}
-            </div>
-          </div>
+          <LanguagePickerPanel
+            title="Idiomas de salida"
+            filterValue={outputFilter}
+            onFilterChange={setOutputFilter}
+            languages={filteredOutputLanguages}
+            selectedIds={outputLanguageIds}
+            onToggle={handleToggleOutput}
+            allSelected={allOutputSelected}
+            indeterminate={outputIndeterminate}
+            onToggleAll={handleToggleAllOutput}
+            disabled={isSubmitting}
+            isLoading={isLoadingLanguages}
+            isEmptyDisabled={languages.length === 0}
+          />
         </div>
         <p className="text-xs text-gray-500 dark:text-slate-400">
           Estos idiomas controlan qué opciones aparecen en el traductor cuando se seleccione este modelo.
