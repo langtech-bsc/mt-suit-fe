@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { FileUpload } from '../../../components/FileUpload'
-import { Alert, Badge, Button, Card, Select } from '../../../components/ui'
+import { Alert, Button, Card, Select } from '../../../components/ui'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
 
@@ -46,14 +46,15 @@ export function DocumentTranslatorView() {
   }, [defaultProviderId])
 
   const canProcess = Boolean(selectedFile && sourceLang && targetLang && providerId)
-  const progressLabel =
-    status === 'processing'
-      ? `Procesando documento… ${progress}%`
-      : status === 'ready'
-        ? 'Listo para traducir'
-        : status === 'done'
-          ? 'Documento traducido'
-          : 'Listo para comenzar'
+  
+  const getProgressLabel = (currentStatus: DocStatus, currentProgress: number): string => {
+    if (currentStatus === 'processing') return `Procesando documento… ${currentProgress}%`
+    if (currentStatus === 'ready') return 'Listo para traducir'
+    if (currentStatus === 'done') return 'Documento traducido'
+    return 'Listo para comenzar'
+  }
+
+  const progressLabel = getProgressLabel(status, progress)
 
   const handleTranslate = () => {
     if (!canProcess) {
@@ -78,6 +79,18 @@ export function DocumentTranslatorView() {
       label: prov.isDefault ? `${prov.name} · ${prov.providerType} (default)` : `${prov.name} · ${prov.providerType}`,
     })) ?? []
 
+  const providerHelperText = useMemo(() => {
+    if (isLoadingProviders) return 'Cargando modelos…'
+    if (providerOptions.length === 0) return 'Sin modelos disponibles'
+    return undefined
+  }, [isLoadingProviders, providerOptions.length])
+
+  const providersErrorMessage = useMemo(() => {
+    if (providersError instanceof Error) return providersError.message
+    if (providersError) return 'No pudimos cargar modelos.'
+    return null
+  }, [providersError])
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10 pt-6">
       <Card padding="lg" className="space-y-3 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -86,26 +99,24 @@ export function DocumentTranslatorView() {
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
+            <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Sube contratos, manuales o PDFs y obtén la traducción con seguimiento en tiempo real.
             </p>
           </div>
-          <Badge variant="success" size="md">
-            Operativo
-          </Badge>
+         
         </div>
       </Card>
 
-      <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+      <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
               Configuración rápida
             </p>
-            <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Modelo, idiomas y formato</h2>
+            <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">Modelo, idiomas y formato</h2>
           </div>
-          <Badge variant="success">Activo</Badge>
+         
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
          
@@ -114,7 +125,7 @@ export function DocumentTranslatorView() {
             value={String(providerId)}
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
-            helperText={isLoadingProviders ? 'Cargando modelos…' : providerOptions.length === 0 ? 'Sin modelos disponibles' : undefined}
+            helperText={providerHelperText}
             disabled={isLoadingProviders || providerOptions.length === 0}
           />
           <Select
@@ -140,11 +151,11 @@ export function DocumentTranslatorView() {
         <Alert variant="danger" title="Revisa la configuración" description={errorMessage} className="border border-red-200" />
       )}
       {providersError && (
-        <Alert variant="warning" title="Modelos no disponibles" description={(providersError as Error).message} />
+        <Alert variant="warning" title="Modelos no disponibles" description={providersErrorMessage ?? undefined} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-950/60 lg:col-span-2">
+        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 1</p>
@@ -152,7 +163,6 @@ export function DocumentTranslatorView() {
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
               <span>Formatos: PDF, DOCX, TXT</span>
-              <span>· Máx. 25 MB</span>
             </div>
           </div>
 
@@ -175,13 +185,13 @@ export function DocumentTranslatorView() {
         </Card>
 
         <div className="space-y-4">
-          <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-950/60">
+          <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 2</p>
             <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Seguimiento</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Barra de progreso y estado del documento en tiempo real.
             </p>
-            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center justify-between text-sm font-medium text-bsc-blue-dark dark:text-white">
                 <span>{progressLabel}</span>
                 <span>{progress}%</span>
