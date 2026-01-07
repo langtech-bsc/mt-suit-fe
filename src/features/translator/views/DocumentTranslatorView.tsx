@@ -86,26 +86,24 @@ export function DocumentTranslatorView() {
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
+            <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Sube contratos, manuales o PDFs y obtén la traducción con seguimiento en tiempo real.
             </p>
           </div>
-          <Badge variant="success" size="md">
-            Operativo
-          </Badge>
+         
         </div>
       </Card>
 
-      <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+      <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
               Configuración rápida
             </p>
-            <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Modelo, idiomas y formato</h2>
+            <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">Modelo, idiomas y formato</h2>
           </div>
-          <Badge variant="success">Activo</Badge>
+         
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
          
@@ -144,7 +142,7 @@ export function DocumentTranslatorView() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-950/60 lg:col-span-2">
+        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 1</p>
@@ -175,13 +173,13 @@ export function DocumentTranslatorView() {
         </Card>
 
         <div className="space-y-4">
-          <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-950/60">
+          <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 2</p>
             <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Seguimiento</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Barra de progreso y estado del documento en tiempo real.
             </p>
-            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center justify-between text-sm font-medium text-bsc-blue-dark dark:text-white">
                 <span>{progressLabel}</span>
                 <span>{progress}%</span>

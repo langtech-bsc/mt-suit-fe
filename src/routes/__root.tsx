@@ -43,7 +43,8 @@ const RootLayout = () => {
                 Traductor
               </Link>
               <Link
-                to="/translator/documents"
+                to="/documents"
+                activeOptions={{ exact: true }}
                 className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
               >
                 Documentos

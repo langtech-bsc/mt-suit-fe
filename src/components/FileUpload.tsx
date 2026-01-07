@@ -63,7 +63,7 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
                 <label
                     htmlFor={fileInputId}
                     aria-label="Sube un archivo haciendo clic o arrastrando, o escribe el texto debajo"
-                    className={`relative grow flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors ${dragActive ? "border-bsc-blue-medium bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                    className={`relative grow flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors ${dragActive ? "border-bsc-blue-medium bg-blue-50 dark:bg-slate-700" : "border-gray-300 dark:border-gray-700 dark:bg-slate-800 dark:hover:bg-slate-700 bg-gray-50 hover:bg-gray-100"
                         }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
@@ -89,7 +89,7 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
                    
                 </label>
             ) : (
-                <div className="grow flex flex-col items-center justify-center p-6 border rounded-lg bg-blue-50 border-bsc-blue-medium">
+                <div className="grow flex flex-col items-center justify-center p-6 border rounded-lg bg-blue-50 border-bsc-blue-medium dark:bg-slate-800 dark:border-bsc-blue-medium-dark">
                     <div className="flex items-center gap-3 mb-4">
                         <svg className="w-8 h-8 text-bsc-blue-medium dark:text-bsc-blue-medium-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

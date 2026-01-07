@@ -313,7 +313,7 @@ const renderHighlightedText = (
 
 function TranslatorHeader() {
   return (
-    <header className="space-y-3 rounded-3xl bg-white/80 p-6 shadow-sm backdrop-blur dark:bg-slate-900/60">
+    <Card padding="lg" className="space-y-3 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
         Módulo avanzado
       </p>
@@ -328,7 +328,7 @@ function TranslatorHeader() {
           Máximo {MAX_CHARACTERS.toLocaleString('es-ES')} caracteres
         </div>
       </div>
-    </header>
+    </Card>
   )
 }
 
@@ -353,7 +353,7 @@ function ModeAndLanguageCard(props: Readonly<{
   lockControls: boolean
 }>) {
   return (
-    <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <Card padding="lg" className="space-y-4 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
       <div className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Modo de trabajo</p>
         <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">{props.activeConfig.label}</h2>
@@ -1296,7 +1296,7 @@ export const TranslatorView = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-linear-to-b from-white via-blue-50/40 to-blue-100/20 px-4 py-8 text-slate-900 dark:bg-linear-to-b dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50 sm:px-6 lg:px-10">
+    <div className="flex min-h-screen flex-col  px-4 py-8 text-slate-900  dark:text-slate-50 sm:px-6 lg:px-10">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
         <TranslatorHeader />
 
