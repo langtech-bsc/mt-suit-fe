@@ -42,6 +42,12 @@ const RootLayout = () => {
               <Link to="/translator" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Traductor
               </Link>
+              <Link
+                to="/translator/documents"
+                className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200"
+              >
+                Documentos
+              </Link>
               {/* <Link to="/about" className="text-slate-700 transition hover:text-bsc-blue-medium [&.active]:text-bsc-blue-medium dark:text-slate-200">
                 Acerca de
               </Link> */}
