@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { FileUpload } from '../../../components/FileUpload'
-import { Alert, Badge, Button, Card, Select } from '../../../components/ui'
+import { Alert, Button, Card, Select } from '../../../components/ui'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
 
@@ -46,14 +46,15 @@ export function DocumentTranslatorView() {
   }, [defaultProviderId])
 
   const canProcess = Boolean(selectedFile && sourceLang && targetLang && providerId)
-  const progressLabel =
-    status === 'processing'
-      ? `Procesando documento… ${progress}%`
-      : status === 'ready'
-        ? 'Listo para traducir'
-        : status === 'done'
-          ? 'Documento traducido'
-          : 'Listo para comenzar'
+  
+  const getProgressLabel = (currentStatus: DocStatus, currentProgress: number): string => {
+    if (currentStatus === 'processing') return `Procesando documento… ${currentProgress}%`
+    if (currentStatus === 'ready') return 'Listo para traducir'
+    if (currentStatus === 'done') return 'Documento traducido'
+    return 'Listo para comenzar'
+  }
+
+  const progressLabel = getProgressLabel(status, progress)
 
   const handleTranslate = () => {
     if (!canProcess) {
@@ -77,6 +78,18 @@ export function DocumentTranslatorView() {
       value: String(prov.id),
       label: prov.isDefault ? `${prov.name} · ${prov.providerType} (default)` : `${prov.name} · ${prov.providerType}`,
     })) ?? []
+
+  const providerHelperText = useMemo(() => {
+    if (isLoadingProviders) return 'Cargando modelos…'
+    if (providerOptions.length === 0) return 'Sin modelos disponibles'
+    return undefined
+  }, [isLoadingProviders, providerOptions.length])
+
+  const providersErrorMessage = useMemo(() => {
+    if (providersError instanceof Error) return providersError.message
+    if (providersError) return 'No pudimos cargar modelos.'
+    return null
+  }, [providersError])
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10 pt-6">
@@ -112,7 +125,7 @@ export function DocumentTranslatorView() {
             value={String(providerId)}
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
-            helperText={isLoadingProviders ? 'Cargando modelos…' : providerOptions.length === 0 ? 'Sin modelos disponibles' : undefined}
+            helperText={providerHelperText}
             disabled={isLoadingProviders || providerOptions.length === 0}
           />
           <Select
@@ -138,7 +151,7 @@ export function DocumentTranslatorView() {
         <Alert variant="danger" title="Revisa la configuración" description={errorMessage} className="border border-red-200" />
       )}
       {providersError && (
-        <Alert variant="warning" title="Modelos no disponibles" description={(providersError as Error).message} />
+        <Alert variant="warning" title="Modelos no disponibles" description={providersErrorMessage ?? undefined} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -150,7 +163,6 @@ export function DocumentTranslatorView() {
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
               <span>Formatos: PDF, DOCX, TXT</span>
-              <span>· Máx. 25 MB</span>
             </div>
           </div>
 
