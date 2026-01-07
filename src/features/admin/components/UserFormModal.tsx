@@ -222,7 +222,7 @@ export const UserFormModal = ({
           <input
             type="hidden"
             {...createForm.register('role', {
-              validate: (value) => createSchema.shape.role.safeParse(value).success || 'Selecciona un rol.',
+              validate: (value) => createSchema.shape.role.safeParse(value).success ?? 'Selecciona un rol.',
             })}
           />
           <Input
@@ -230,7 +230,7 @@ export const UserFormModal = ({
             placeholder="usuario.corporativo"
             disabled={isSubmitting}
             {...createForm.register('username', {
-              validate: (value) => createSchema.shape.username.safeParse(value).success || 'El usuario es obligatorio.',
+              validate: (value) => createSchema.shape.username.safeParse(value).success ?? 'El usuario es obligatorio.',
             })}
             error={createForm.formState.errors.username?.message}
           />
@@ -240,7 +240,7 @@ export const UserFormModal = ({
             placeholder="user@example.com"
             disabled={isSubmitting}
             {...createForm.register('email', {
-              validate: (value) => createSchema.shape.email.safeParse(value).success || 'Ingresa un email válido.',
+              validate: (value) => createSchema.shape.email.safeParse(value).success ?? 'Ingresa un email válido.',
             })}
             error={createForm.formState.errors.email?.message}
           />
@@ -251,7 +251,7 @@ export const UserFormModal = ({
             disabled={isSubmitting}
             {...createForm.register('password', {
               validate: (value) =>
-                createSchema.shape.password.safeParse(value).success || 'La contraseña debe tener al menos 6 caracteres.',
+                createSchema.shape.password.safeParse(value).success ?? 'La contraseña debe tener al menos 6 caracteres.',
             })}
             error={createForm.formState.errors.password?.message}
           />
@@ -278,14 +278,14 @@ export const UserFormModal = ({
           <input
             type="hidden"
             {...editForm.register('role', {
-              validate: (value) => editSchema.shape.role.safeParse(value).success || 'Selecciona un rol.',
+              validate: (value) => editSchema.shape.role.safeParse(value).success ?? 'Selecciona un rol.',
             })}
           />
           <Input
             label="Usuario"
             disabled={isSubmitting}
             {...editForm.register('username', {
-              validate: (value) => editSchema.shape.username.safeParse(value).success || 'El usuario es obligatorio.',
+              validate: (value) => editSchema.shape.username.safeParse(value).success ?? 'El usuario es obligatorio.',
             })}
             error={editForm.formState.errors.username?.message}
           />
@@ -294,7 +294,7 @@ export const UserFormModal = ({
             type="email"
             disabled={isSubmitting}
             {...editForm.register('email', {
-              validate: (value) => editSchema.shape.email.safeParse(value).success || 'Ingresa un email válido.',
+              validate: (value) => editSchema.shape.email.safeParse(value).success ?? 'Ingresa un email válido.',
             })}
             error={editForm.formState.errors.email?.message}
           />
