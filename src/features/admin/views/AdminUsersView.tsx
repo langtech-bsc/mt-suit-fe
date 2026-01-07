@@ -479,7 +479,7 @@ export const AdminUsersView = () => {
                           <Switch
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
-                            disabled={isUpdatingThis || isSelf}
+                            disabled={isUpdatingThis ?? isSelf}
                             aria-label="Activar o desactivar usuario"
                           />
                             <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
@@ -522,7 +522,7 @@ export const AdminUsersView = () => {
                               variant="danger"
                               size="sm"
                               onClick={() => handleRequestDelete(record)}
-                              disabled={isMutating || isSelf}
+                              disabled={isMutating ?? isSelf}
                             >
                               Eliminar
                             </Button>

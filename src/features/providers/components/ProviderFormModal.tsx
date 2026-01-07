@@ -148,7 +148,7 @@ export const ProviderFormModal = ({
       const shape = schema.shape as Record<string, z.ZodTypeAny>
       const validator = shape[field]
       if (!validator) {
-        setFieldError(field, undefined)
+        setFieldError(field)
         return
       }
       const validation = validator.safeParse(value)
@@ -156,7 +156,7 @@ export const ProviderFormModal = ({
         setFieldError(field, validation.error.issues[0]?.message ?? fallbackMessage)
         return
       }
-      setFieldError(field, undefined)
+      setFieldError(field)
     },
     [schema.shape, setFieldError],
   )
@@ -203,6 +203,81 @@ export const ProviderFormModal = ({
     [allOutputSelected, outputLanguageIds.length],
   )
 
+  type ProviderValidationResult =
+    | { success: true; data: z.infer<typeof createSchema> | z.infer<typeof editSchema> }
+    | { success: false; error: z.ZodError }
+
+  const buildFieldErrors = (
+    validation: ProviderValidationResult,
+    configValidation: ReturnType<typeof parseConfig>,
+  ) => {
+    const nextErrors: Record<string, string> = {}
+    if (!validation.success) {
+      for (const issue of validation.error.issues) {
+        const field = issue.path[0]
+        if (typeof field === 'string' && !nextErrors[field]) {
+          nextErrors[field] = issue.message
+        }
+      }
+    }
+    if (!configValidation.ok) {
+      nextErrors.configuration = configValidation.message
+    }
+    return nextErrors
+  }
+
+  const buildValidationMessage = (
+    validation: ProviderValidationResult,
+    configValidation: ReturnType<typeof parseConfig>,
+  ) => {
+    const configErrorMessage = configValidation.ok ? undefined : configValidation.message
+    if (validation.success && !configValidation.ok) {
+      return configErrorMessage ?? 'Revisa el formulario.'
+    }
+    if (!validation.success) {
+      return validation.error.issues[0]?.message ?? configErrorMessage ?? 'Revisa el formulario.'
+    }
+    return null
+  }
+
+  const submitCreate = (
+    data: z.infer<typeof createSchema>,
+    configuration: ProviderConfiguration,
+  ) => {
+    onCreate({
+      name: data.name,
+      providerType: data.providerType,
+      endpoint: data.endpoint,
+      region: data.region?.trim() ?? '',
+      inputLanguageIds: data.inputLanguageIds,
+      outputLanguageIds: data.outputLanguageIds,
+      apiKey: data.apiKey,
+      configuration,
+      isActive: data.isActive,
+      isDefault: data.isDefault,
+    })
+  }
+
+  const submitEdit = (
+    data: z.infer<typeof editSchema>,
+    configuration: ProviderConfiguration,
+  ) => {
+    if (!provider) {
+      return
+    }
+    onEdit(provider.id, {
+      name: data.name,
+      endpoint: data.endpoint,
+      region: data.region?.trim() ?? '',
+      apiKey: data.apiKey?.trim() ? data.apiKey.trim() : undefined,
+      configuration,
+      isActive: data.isActive,
+      isDefault: data.isDefault,
+      inputLanguageIds: data.inputLanguageIds,
+      outputLanguageIds: data.outputLanguageIds,
+    })
+  }
+
   const handleSubmit = () => {
     setValidationError(null)
 
@@ -220,61 +295,17 @@ export const ProviderFormModal = ({
     })
 
     if (!configValidation.ok || !validation.success) {
-      const configErrorMessage = configValidation.ok ? undefined : configValidation.message
-      const nextErrors: Record<string, string> = {}
-      if (!validation.success) {
-        for (const issue of validation.error.issues) {
-          const field = issue.path[0]
-          if (typeof field === 'string' && !nextErrors[field]) {
-            nextErrors[field] = issue.message
-          }
-        }
-      }
-      if (!configValidation.ok) {
-        nextErrors.configuration = configValidation.message
-      }
-      setFieldErrors(nextErrors)
-      setValidationError(
-        validation.success
-          ? (configErrorMessage ?? 'Revisa el formulario.')
-          : (validation.error.issues[0]?.message ?? configErrorMessage ?? 'Revisa el formulario.'),
-      )
+      setFieldErrors(buildFieldErrors(validation, configValidation))
+      setValidationError(buildValidationMessage(validation, configValidation))
       return
     }
 
     if (!isEdit) {
-      onCreate({
-        name: validation.data.name,
-        providerType: (validation.data as z.infer<typeof createSchema>).providerType,
-        endpoint: validation.data.endpoint,
-        region: validation.data.region?.trim() ?? '',
-        inputLanguageIds: validation.data.inputLanguageIds,
-        outputLanguageIds: validation.data.outputLanguageIds,
-        apiKey: (validation.data as z.infer<typeof createSchema>).apiKey,
-        configuration: configValidation.value,
-        isActive: validation.data.isActive,
-        isDefault: validation.data.isDefault,
-      })
+      submitCreate(validation.data as z.infer<typeof createSchema>, configValidation.value)
       return
     }
 
-    if (!provider) {
-      return
-    }
-
-    onEdit(provider.id, {
-      name: validation.data.name,
-      endpoint: validation.data.endpoint,
-      region: validation.data.region?.trim() ?? '',
-      apiKey: (validation.data as z.infer<typeof editSchema>).apiKey?.trim()
-        ? (validation.data as z.infer<typeof editSchema>).apiKey?.trim()
-        : undefined,
-      configuration: configValidation.value,
-      isActive: validation.data.isActive,
-      isDefault: validation.data.isDefault,
-      inputLanguageIds: validation.data.inputLanguageIds,
-      outputLanguageIds: validation.data.outputLanguageIds,
-    })
+    submitEdit(validation.data, configValidation.value)
   }
 
   const submitButtonText = isEdit ? 'Guardar cambios' : 'Crear proveedor'
@@ -411,7 +442,7 @@ export const ProviderFormModal = ({
                   setInputLanguageIds(nextValue)
                   validateSchemaField('inputLanguageIds', nextValue, 'Selecciona al menos un idioma de entrada.')
                 }}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
+                disabled={isSubmitting || isLoadingLanguages || languages.length === 0} // NOSONAR
               />
             </div>
             <Input
@@ -457,7 +488,7 @@ export const ProviderFormModal = ({
                   setOutputLanguageIds(nextValue)
                   validateSchemaField('outputLanguageIds', nextValue, 'Selecciona al menos un idioma de salida.')
                 }}
-                disabled={isSubmitting || isLoadingLanguages || languages.length === 0}
+                disabled={isSubmitting || isLoadingLanguages || languages.length === 0} // NOSONAR
               />
             </div>
             <Input

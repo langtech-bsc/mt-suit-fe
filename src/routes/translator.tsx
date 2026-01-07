@@ -1,5 +1,4 @@
-import { Outlet } from '@tanstack/react-router'
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Outlet , createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '../features/auth/store/auth.store'
 
 export const Route = createFileRoute('/translator')({
