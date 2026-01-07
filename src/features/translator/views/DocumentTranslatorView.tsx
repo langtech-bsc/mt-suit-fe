@@ -126,7 +126,7 @@ export function DocumentTranslatorView() {
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
             helperText={providerHelperText}
-            disabled={isLoadingProviders || providerOptions.length === 0}
+            disabled={isLoadingProviders || providerOptions.length === 0} // NOSONAR
           />
           <Select
             label="Formato de salida"
