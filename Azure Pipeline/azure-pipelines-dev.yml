@@ -44,7 +44,7 @@ stages:
               SonarQube: 'BSC'
               scannerMode: 'CLI'
               configMode: 'manual'
-              cliProjectKey: 'BSC-Translation_AI_Project_frotend_bsctranslation_f453fd2d-815b-4701-902c-69df95d9a288'
+              cliProjectKey: 'BSC-Translation_AI_Project_frotend_bsctranslation_337273b3-6029-4120-b7d0-4be48bdb6a45'
               cliProjectName: 'frotend_bsctranslation'
               cliSources: '.'
               extraProperties: |
@@ -74,7 +74,7 @@ stages:
             inputs:
               targetType: 'inline'
               script: |
-                PROJECT_KEY="BSC-Translation_AI_Project_frotend_bsctranslation_f453fd2d-815b-4701-902c-69df95d9a288"
+                PROJECT_KEY="BSC-Translation_AI_Project_frotend_bsctranslation_337273b3-6029-4120-b7d0-4be48bdb6a45"
                 
                 sleep 15
                 
