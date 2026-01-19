@@ -213,4 +213,77 @@ export const common = {
       genericOperation: 'No hem pogut completar l’operació.',
     },
   },
+  documents: {
+    header: {
+      label: 'Documents',
+      title: 'Traducció de documents',
+      subtitle: 'Puja fitxers TXT o DOCX i obtén la traducció amb seguiment en temps real.',
+    },
+    quickConfig: {
+      label: 'Configuració ràpida',
+      title: 'Model, idiomes i format',
+      modelLabel: 'Model / Provider',
+      outputFormatLabel: 'Format de sortida',
+      outputFormatHelper: 'Es manté el format del fitxer traduït.',
+      sourceLanguageLabel: 'Idioma d’origen',
+      targetLanguageLabel: 'Idioma de destí',
+      providers: {
+        loading: 'Carregant models…',
+        none: 'Sense models disponibles',
+        loadError: 'No hem pogut carregar models.',
+        defaultSuffix: ' (default)',
+      },
+    },
+    alerts: {
+      reviewTitle: 'Revisa la configuració',
+      providersUnavailableTitle: 'Models no disponibles',
+    },
+    step1: {
+      label: 'Pas 1',
+      title: 'Càrrega i configuració',
+      formatsLabel: 'Formats: {{formats}}',
+      reset: 'Netejar',
+      cancel: 'Cancel·lar',
+      translate: 'Traduir document',
+    },
+    step2: {
+      label: 'Pas 2',
+      title: 'Seguiment',
+      subtitle: 'Barra de progrés i estat del document en temps real.',
+      liveProgressHint: 'Progrés en viu del processament i traducció del fitxer.',
+      download: 'Descarregar',
+    },
+    progress: {
+      idle: 'A punt per començar',
+      ready: 'A punt per traduir',
+      processing: 'Processant document… {{progress}}%',
+      done: 'Document traduït',
+    },
+    errors: {
+      missingSetup: 'Puja un document i selecciona idiomes / model.',
+      invalidFile: 'Selecciona un fitxer vàlid.',
+      unsupportedFormat: 'Format no compatible. Només es permeten fitxers {{formats}}.',
+      unknown: 'Error desconegut.',
+    },
+    outputFormats: {
+      docx: 'Word (.docx)',
+      txt: 'Text (.txt)',
+    },
+    integrationNotes: {
+      title: 'Notes d’integració',
+      items: {
+        trackingDownload: 'Traducció de documents amb seguiment i descàrrega directa.',
+        respectModelLanguages: 'Respecta els idiomes suportats pel model seleccionat.',
+        streamingOrPolling: 'Suport per streaming o polling segons el proveïdor.',
+        downloadAfterDone: 'Descàrrega habilitada després de finalitzar el processament.',
+      },
+    },
+  },
+  fileUpload: {
+    inputLabel: 'Text o document d’entrada',
+    dropzoneAria: 'Puja un fitxer fent clic o arrossegant-lo, o escriu el text a sota',
+    dropzoneCta: 'Fes clic per pujar o arrossega i deixa anar',
+    formatsHint: 'Formats: .txt, .pdf, .docx, .pptx',
+    removeFile: 'Eliminar fitxer',
+  },
 } as const;

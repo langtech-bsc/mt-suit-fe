@@ -1,4 +1,5 @@
 import { useState, useRef, useId } from "react";
+import { useTranslation } from "react-i18next";
 import { DOCUMENT_TRANSLATION_ACCEPT } from "../constants/fileTypes";
 
 interface FileUploadProps {
@@ -7,6 +8,7 @@ interface FileUploadProps {
 }
 
 export function FileUpload({ onFileSelect, accept = DOCUMENT_TRANSLATION_ACCEPT }: FileUploadProps) {
+    const { t } = useTranslation();
     const [dragActive, setDragActive] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -58,13 +60,13 @@ export function FileUpload({ onFileSelect, accept = DOCUMENT_TRANSLATION_ACCEPT 
     return (
         <div className="flex flex-col gap-2 h-full">
             <label className="text-sm font-medium text-gray-600" htmlFor={fileInputId}>
-                Texto o documento de entrada
+                {t("fileUpload.inputLabel")}
             </label>
 
             {selectedFile === null ? (
                 <label
                     htmlFor={fileInputId}
-                    aria-label="Sube un archivo haciendo clic o arrastrando, o escribe el texto debajo"
+                    aria-label={t("fileUpload.dropzoneAria")}
                     className={`relative grow flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors ${dragActive ? "border-bsc-blue-medium bg-blue-50 dark:bg-slate-700" : "border-gray-300 dark:border-gray-700 dark:bg-slate-800 dark:hover:bg-slate-700 bg-gray-50 hover:bg-gray-100"
                         }`}
                     onDragEnter={handleDrag}
@@ -84,8 +86,8 @@ export function FileUpload({ onFileSelect, accept = DOCUMENT_TRANSLATION_ACCEPT 
                         <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <p className="text-sm font-medium">Haz clic para subir o arrastrar y soltar</p>
-                        <p className="text-xs mt-1">Formatos: .txt, .pdf, .docx, .pptx</p>
+                        <p className="text-sm font-medium">{t("fileUpload.dropzoneCta")}</p>
+                        <p className="text-xs mt-1">{t("fileUpload.formatsHint")}</p>
                     </div>
 
                    
@@ -105,7 +107,7 @@ export function FileUpload({ onFileSelect, accept = DOCUMENT_TRANSLATION_ACCEPT 
                         onClick={clearFile}
                         className="text-sm text-red-600 hover:text-red-800 font-medium underline"
                     >
-                        Eliminar archivo
+                        {t("fileUpload.removeFile")}
                     </button>
                 </div>
             )}

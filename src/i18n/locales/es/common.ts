@@ -213,4 +213,77 @@ export const common = {
       genericOperation: 'No pudimos completar la operación.',
     },
   },
+  documents: {
+    header: {
+      label: 'Documentos',
+      title: 'Traducción de documentos',
+      subtitle: 'Sube archivos TXT o DOCX y obtén la traducción con seguimiento en tiempo real.',
+    },
+    quickConfig: {
+      label: 'Configuración rápida',
+      title: 'Modelo, idiomas y formato',
+      modelLabel: 'Modelo / Provider',
+      outputFormatLabel: 'Formato de salida',
+      outputFormatHelper: 'Se mantiene el formato del archivo traducido.',
+      sourceLanguageLabel: 'Idioma origen',
+      targetLanguageLabel: 'Idioma destino',
+      providers: {
+        loading: 'Cargando modelos…',
+        none: 'Sin modelos disponibles',
+        loadError: 'No pudimos cargar modelos.',
+        defaultSuffix: ' (default)',
+      },
+    },
+    alerts: {
+      reviewTitle: 'Revisa la configuración',
+      providersUnavailableTitle: 'Modelos no disponibles',
+    },
+    step1: {
+      label: 'Paso 1',
+      title: 'Carga y configuración',
+      formatsLabel: 'Formatos: {{formats}}',
+      reset: 'Limpiar',
+      cancel: 'Cancelar',
+      translate: 'Traducir documento',
+    },
+    step2: {
+      label: 'Paso 2',
+      title: 'Seguimiento',
+      subtitle: 'Barra de progreso y estado del documento en tiempo real.',
+      liveProgressHint: 'Progreso en vivo del procesamiento y traducción del archivo.',
+      download: 'Descargar',
+    },
+    progress: {
+      idle: 'Listo para comenzar',
+      ready: 'Listo para traducir',
+      processing: 'Procesando documento… {{progress}}%',
+      done: 'Documento traducido',
+    },
+    errors: {
+      missingSetup: 'Sube un documento y selecciona idiomas / modelo.',
+      invalidFile: 'Selecciona un archivo válido.',
+      unsupportedFormat: 'Formato no soportado. Solo se permiten archivos {{formats}}.',
+      unknown: 'Error desconocido.',
+    },
+    outputFormats: {
+      docx: 'Word (.docx)',
+      txt: 'Texto (.txt)',
+    },
+    integrationNotes: {
+      title: 'Notas de integración',
+      items: {
+        trackingDownload: 'Traducción de documentos con seguimiento y descarga directa.',
+        respectModelLanguages: 'Respeta los idiomas soportados por el modelo seleccionado.',
+        streamingOrPolling: 'Soporte para streaming o polling según el proveedor.',
+        downloadAfterDone: 'Descarga habilitada tras finalizar el procesamiento.',
+      },
+    },
+  },
+  fileUpload: {
+    inputLabel: 'Texto o documento de entrada',
+    dropzoneAria: 'Sube un archivo haciendo clic o arrastrando, o escribe el texto debajo',
+    dropzoneCta: 'Haz clic para subir o arrastrar y soltar',
+    formatsHint: 'Formatos: .txt, .pdf, .docx, .pptx',
+    removeFile: 'Eliminar archivo',
+  },
 } as const;

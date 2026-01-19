@@ -212,4 +212,77 @@ export const common = {
       genericOperation: "We couldn't complete the operation.",
     },
   },
+  documents: {
+    header: {
+      label: 'Documents',
+      title: 'Document translation',
+      subtitle: 'Upload TXT or DOCX files and get the translation with real-time tracking.',
+    },
+    quickConfig: {
+      label: 'Quick setup',
+      title: 'Model, languages and format',
+      modelLabel: 'Model / Provider',
+      outputFormatLabel: 'Output format',
+      outputFormatHelper: 'The translated file format is preserved.',
+      sourceLanguageLabel: 'Source language',
+      targetLanguageLabel: 'Target language',
+      providers: {
+        loading: 'Loading models…',
+        none: 'No models available',
+        loadError: "We couldn't load models.",
+        defaultSuffix: ' (default)',
+      },
+    },
+    alerts: {
+      reviewTitle: 'Review your setup',
+      providersUnavailableTitle: 'Models unavailable',
+    },
+    step1: {
+      label: 'Step 1',
+      title: 'Upload and setup',
+      formatsLabel: 'Formats: {{formats}}',
+      reset: 'Reset',
+      cancel: 'Cancel',
+      translate: 'Translate document',
+    },
+    step2: {
+      label: 'Step 2',
+      title: 'Tracking',
+      subtitle: 'Progress bar and real-time document status.',
+      liveProgressHint: 'Live progress for file processing and translation.',
+      download: 'Download',
+    },
+    progress: {
+      idle: 'Ready to start',
+      ready: 'Ready to translate',
+      processing: 'Processing document… {{progress}}%',
+      done: 'Document translated',
+    },
+    errors: {
+      missingSetup: 'Upload a document and select languages / model.',
+      invalidFile: 'Select a valid file.',
+      unsupportedFormat: 'Unsupported format. Only {{formats}} files are allowed.',
+      unknown: 'Unknown error.',
+    },
+    outputFormats: {
+      docx: 'Word (.docx)',
+      txt: 'Text (.txt)',
+    },
+    integrationNotes: {
+      title: 'Integration notes',
+      items: {
+        trackingDownload: 'Document translation with tracking and direct download.',
+        respectModelLanguages: 'Respects the languages supported by the selected model.',
+        streamingOrPolling: 'Supports streaming or polling depending on the provider.',
+        downloadAfterDone: 'Download enabled after processing finishes.',
+      },
+    },
+  },
+  fileUpload: {
+    inputLabel: 'Input text or document',
+    dropzoneAria: 'Upload a file by clicking or dragging, or type the text below',
+    dropzoneCta: 'Click to upload or drag and drop',
+    formatsHint: 'Formats: .txt, .pdf, .docx, .pptx',
+    removeFile: 'Remove file',
+  },
 } as const;
