@@ -1,10 +1,12 @@
 import { useState, useRef, useId } from "react";
+import { DOCUMENT_TRANSLATION_ACCEPT } from "../constants/fileTypes";
 
 interface FileUploadProps {
     readonly onFileSelect: (file: File | null) => void;
+    readonly accept?: string;
 }
 
-export function FileUpload({ onFileSelect }: FileUploadProps) {
+export function FileUpload({ onFileSelect, accept = DOCUMENT_TRANSLATION_ACCEPT }: FileUploadProps) {
     const [dragActive, setDragActive] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,7 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
                         id={fileInputId}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                         onChange={handleChange}
-                        accept=".txt,.pdf,.docx,.pptx"
+                        accept={accept}
                     />
                     <div className="flex flex-col flex-1 items-center text-center text-gray-500 pointer-events-none">
                         <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

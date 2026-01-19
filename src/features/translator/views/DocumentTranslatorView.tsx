@@ -1,15 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { FileUpload } from '../../../components/FileUpload'
 import { Alert, Button, Card, Select } from '../../../components/ui'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
+import { documentTranslationService, type DocumentTranslationResult } from '../services/documentTranslation.service'
+import {
+  DOCUMENT_TRANSLATION_ACCEPT,
+  DOCUMENT_TRANSLATION_FORMATS_LABEL,
+  DOCUMENT_TRANSLATION_SUPPORTED_EXTENSIONS,
+  type DocumentTranslationSupportedExtension,
+} from '../../../constants/fileTypes'
 
 type DocStatus = 'idle' | 'ready' | 'processing' | 'done'
 
 const OUTPUT_FORMATS = [
   { value: 'docx', label: 'Word (.docx)' },
-  { value: 'pdf', label: 'PDF' },
   { value: 'txt', label: 'Texto (.txt)' },
 ] as const
 
@@ -25,6 +32,9 @@ export function DocumentTranslatorView() {
   const [status, setStatus] = useState<DocStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [result, setResult] = useState<DocumentTranslationResult | null>(null)
+
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const defaultSource = useMemo(
     () => languages.find((lang) => lang.isoCode.toLowerCase() === 'es')?.isoCode ?? languages[0]?.isoCode ?? '',
@@ -56,21 +66,152 @@ export function DocumentTranslatorView() {
 
   const progressLabel = getProgressLabel(status, progress)
 
+  const normalizeExtension = useCallback((filename: string): DocumentTranslationSupportedExtension | null => {
+    const lower = filename.trim().toLowerCase()
+    const match = lower.match(/\.([a-z0-9]+)$/)
+    const ext = match?.[1]
+    if (!ext) return null
+    return DOCUMENT_TRANSLATION_SUPPORTED_EXTENSIONS.includes(ext as DocumentTranslationSupportedExtension)
+      ? (ext as DocumentTranslationSupportedExtension)
+      : null
+  }, [])
+
+  const downloadBlob = useCallback((blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const isCanceledError = (error: unknown) => {
+    if (!(error instanceof Error)) return false
+    const message = error.message.toLowerCase()
+    return message.includes('canceled') || message.includes('cancelled') || message.includes('aborted')
+  }
+
+  const translateMutation = useMutation({
+    mutationFn: async (params: {
+      file: File
+      sourceLanguageCode: string
+      targetLanguageCode: string
+      providerId?: number | null
+      signal: AbortSignal
+    }) => {
+      return documentTranslationService.translate({
+        file: params.file,
+        sourceLanguageCode: params.sourceLanguageCode,
+        targetLanguageCode: params.targetLanguageCode,
+        providerId: params.providerId,
+        asFile: false,
+        signal: params.signal,
+        onProgress: setProgress,
+      })
+    },
+    onSuccess: (data) => {
+      setResult(data)
+      setStatus('done')
+      setProgress(100)
+      setErrorMessage(null)
+      downloadBlob(data.blob, data.translatedFilename)
+    },
+    onError: (error) => {
+      if (isCanceledError(error)) {
+        setStatus('idle')
+        setProgress(0)
+        return
+      }
+      setStatus('idle')
+      setProgress(0)
+      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido.')
+    },
+  })
+
   const handleTranslate = () => {
     if (!canProcess) {
       setErrorMessage('Sube un documento y selecciona idiomas / modelo.')
       return
     }
+    if (!selectedFile) {
+      setErrorMessage('Selecciona un archivo válido.')
+      return
+    }
+
+    const extension = normalizeExtension(selectedFile.name)
+    if (!extension) {
+      setErrorMessage(`Formato no soportado. Solo se permiten archivos ${DOCUMENT_TRANSLATION_FORMATS_LABEL}.`)
+      return
+    }
+
+    setOutputFormat(extension)
     setErrorMessage(null)
     setStatus('processing')
-    setProgress(65)
+    setProgress(0)
+    setResult(null)
+
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    translateMutation.mutate({
+      file: selectedFile,
+      sourceLanguageCode: sourceLang,
+      targetLanguageCode: targetLang,
+      providerId: typeof providerId === 'number' ? providerId : undefined,
+      signal: controller.signal,
+    })
   }
 
   const handleReset = () => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    translateMutation.reset()
     setSelectedFile(null)
+    setResult(null)
     setStatus('idle')
     setProgress(0)
     setErrorMessage(null)
+  }
+
+  const handleCancel = () => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    setStatus('idle')
+    setProgress(0)
+  }
+
+  const handleDownload = () => {
+    if (!result) return
+    downloadBlob(result.blob, result.translatedFilename)
+  }
+
+  const handleFileSelect = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null)
+      setResult(null)
+      setErrorMessage(null)
+      setProgress(0)
+      setStatus('idle')
+      return
+    }
+
+    const extension = normalizeExtension(file.name)
+    if (!extension) {
+      setSelectedFile(null)
+      setResult(null)
+      setErrorMessage(`Formato no soportado. Solo se permiten archivos ${DOCUMENT_TRANSLATION_FORMATS_LABEL}.`)
+      return
+    }
+
+    setSelectedFile(file)
+    setResult(null)
+    setErrorMessage(null)
+    setOutputFormat(extension)
+    setProgress(0)
+    setStatus('idle')
   }
 
   const providerOptions =
@@ -101,7 +242,7 @@ export function DocumentTranslatorView() {
           <div>
             <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Sube contratos, manuales o PDFs y obtén la traducción con seguimiento en tiempo real.
+              Sube archivos TXT o DOCX y obtén la traducción con seguimiento en tiempo real.
             </p>
           </div>
          
@@ -126,13 +267,15 @@ export function DocumentTranslatorView() {
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
             helperText={providerHelperText}
-            disabled={isLoadingProviders || providerOptions.length === 0} // NOSONAR
+            disabled={status === 'processing' || isLoadingProviders || providerOptions.length === 0} // NOSONAR
           />
           <Select
             label="Formato de salida"
             value={outputFormat}
             onChange={(event) => setOutputFormat(event.target.value as (typeof OUTPUT_FORMATS)[number]['value'])}
             options={OUTPUT_FORMATS.map((item) => ({ value: item.value, label: item.label }))}
+            helperText="Se mantiene el formato del archivo traducido."
+            disabled
           />
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
@@ -162,13 +305,13 @@ export function DocumentTranslatorView() {
               <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Carga y configuración</h2>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
-              <span>Formatos: PDF, DOCX, TXT</span>
+              <span>Formatos: {DOCUMENT_TRANSLATION_FORMATS_LABEL}</span>
             </div>
           </div>
 
           <div className="grid gap-4 ">
             <div className="space-y-4">
-              <FileUpload onFileSelect={setSelectedFile} />
+              <FileUpload onFileSelect={handleFileSelect} accept={DOCUMENT_TRANSLATION_ACCEPT} />
             </div>
 
           </div>
@@ -177,9 +320,15 @@ export function DocumentTranslatorView() {
             <Button variant="outline" onClick={handleReset}>
               Limpiar
             </Button>
-            <Button variant="primary" onClick={handleTranslate} disabled={!canProcess || status === 'processing'}>
-              Traducir documento
-            </Button>
+            {status === 'processing' ? (
+              <Button variant="danger" onClick={handleCancel}>
+                Cancelar
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={handleTranslate} disabled={!canProcess}>
+                Traducir documento
+              </Button>
+            )}
             
           </div>
         </Card>
@@ -206,7 +355,7 @@ export function DocumentTranslatorView() {
                 Progreso en vivo del procesamiento y traducción del archivo.
               </p>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleDownload} disabled={!result || status === 'processing'}>
               Descargar
             </Button>
           </Card>
