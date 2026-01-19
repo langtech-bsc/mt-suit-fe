@@ -54,5 +54,31 @@ export const common = {
       genericFailure: 'No hem pogut iniciar sessió, torna-ho a provar.',
     },
   },
+  home: {
+    hero: {
+      brandTagline: 'Plataforma d’Intel·ligència de Traducció',
+      productName: 'BSC Translation',
+      title: 'Traductor especialitzat amb governança i control d’accés',
+      description: 'Gestiona traducció, revisió gramatical i posteditat en una única interfície segura amb autenticació corporativa.',
+      ctaTranslator: 'Entrar al Traductor',
+      ctaAbout: 'Coneix el projecte',
+    },
+    features: {
+      auth: {
+        caption: 'Autenticació',
+        title: 'SSO + Rols',
+        description: 'Accés restringit amb control de sessió i validació de rols per a cada mòdul.',
+      },
+      unified: {
+        caption: 'Experiència unificada',
+        title: 'Traducció completa',
+        description: 'Traducció neural, revisió gramatical i posteditat integrades en un mateix flux.',
+      },
+      observability: {
+        caption: 'Observabilitat',
+        title: 'Auditoria i registres',
+        description: 'Seguiment de sessions per detectar expiracions i rastrejar activitat crítica.',
+      },
+    },
+  },
 } as const;
-
