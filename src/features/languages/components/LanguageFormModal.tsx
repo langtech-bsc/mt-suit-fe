@@ -1,21 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Input, Modal, Switch } from '../../../components/ui'
 import type { LanguageRecord, LanguageUpsertInput } from '../types'
 
 type Mode = 'create' | 'edit'
-
-const languageSchema = z.object({
-  name: z.string().min(2, 'El nombre del idioma es obligatorio.'),
-  isoCode: z
-    .string()
-    .min(2, 'El código ISO es obligatorio.')
-    .max(10, 'El código ISO es demasiado largo.')
-    .regex(/^[a-zA-Z-]+$/, 'Usa solo letras y guiones.'),
-  nativeName: z.string().optional(),
-  sortOrder: z.number().int().min(0, 'El orden debe ser 0 o mayor.'),
-  isActive: z.boolean(),
-})
 
 interface LanguageFormModalProps {
   open: boolean
@@ -36,6 +25,7 @@ export const LanguageFormModal = ({
   onClose,
   onSubmit,
 }: LanguageFormModalProps) => {
+  const { t } = useTranslation()
   const isEdit = mode === 'edit'
   const [name, setName] = useState('')
   const [isoCode, setIsoCode] = useState('')
@@ -44,6 +34,22 @@ export const LanguageFormModal = ({
   const [isActive, setIsActive] = useState(true)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const languageSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, t('languageFormModal.validation.nameRequired')),
+        isoCode: z
+          .string()
+          .min(2, t('languageFormModal.validation.isoRequired'))
+          .max(10, t('languageFormModal.validation.isoTooLong'))
+          .regex(/^[a-zA-Z-]+$/, t('languageFormModal.validation.isoRegex')),
+        nativeName: z.string().optional(),
+        sortOrder: z.number().int().min(0, t('languageFormModal.validation.orderMin')),
+        isActive: z.boolean(),
+      }),
+    [t],
+  )
 
   useEffect(() => {
     if (!open) {
@@ -65,7 +71,7 @@ export const LanguageFormModal = ({
       if (field === 'name') {
         const validation = languageSchema.shape.name.safeParse(value)
         if (!validation.success) {
-          next.name = validation.error.issues[0]?.message ?? 'El nombre del idioma es obligatorio.'
+          next.name = validation.error.issues[0]?.message ?? t('languageFormModal.validation.nameRequired')
         } else {
           delete next.name
         }
@@ -75,7 +81,7 @@ export const LanguageFormModal = ({
       if (field === 'isoCode') {
         const validation = languageSchema.shape.isoCode.safeParse(value)
         if (!validation.success) {
-          next.isoCode = validation.error.issues[0]?.message ?? 'El código ISO es obligatorio.'
+          next.isoCode = validation.error.issues[0]?.message ?? t('languageFormModal.validation.isoRequired')
         } else {
           delete next.isoCode
         }
@@ -85,7 +91,7 @@ export const LanguageFormModal = ({
       if (field === 'nativeName') {
         const validation = languageSchema.shape.nativeName.safeParse(value)
         if (!validation.success) {
-          next.nativeName = validation.error.issues[0]?.message ?? 'Revisa el nombre nativo.'
+          next.nativeName = validation.error.issues[0]?.message ?? t('languageFormModal.validation.nativeInvalid')
         } else {
           delete next.nativeName
         }
@@ -94,13 +100,13 @@ export const LanguageFormModal = ({
 
       const validation = languageSchema.shape.sortOrder.safeParse(value)
       if (!validation.success) {
-        next.sortOrder = validation.error.issues[0]?.message ?? 'El orden debe ser 0 o mayor.'
+        next.sortOrder = validation.error.issues[0]?.message ?? t('languageFormModal.validation.orderMin')
       } else {
         delete next.sortOrder
       }
       return next
     })
-  }, [])
+  }, [languageSchema.shape.isoCode, languageSchema.shape.name, languageSchema.shape.nativeName, languageSchema.shape.sortOrder, t])
 
   const handleSubmit = () => {
     setValidationError(null)
@@ -114,7 +120,7 @@ export const LanguageFormModal = ({
     })
 
     if (!validation.success) {
-      setValidationError(validation.error.issues[0]?.message ?? 'Revisa los datos del formulario.')
+      setValidationError(validation.error.issues[0]?.message ?? t('languageFormModal.validation.formInvalid'))
       return
     }
 
@@ -127,15 +133,15 @@ export const LanguageFormModal = ({
     })
   }
 
-  const submitButtonText = isEdit ? 'Guardar cambios' : 'Añadir idioma'
+  const submitButtonText = isEdit ? t('languageFormModal.buttons.saveChanges') : t('languageFormModal.buttons.add')
 
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-        Cancelar
+        {t('languageFormModal.buttons.cancel')}
       </Button>
       <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando…' : submitButtonText}
+        {isSubmitting ? t('languageFormModal.buttons.saving') : submitButtonText}
       </Button>
     </>
   )
@@ -144,19 +150,19 @@ export const LanguageFormModal = ({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Editar idioma' : 'Añadir idioma'}
-      description={isEdit ? 'Actualiza nombre, nativo, estado y orden.' : 'Añade un idioma nuevo disponible para toda la plataforma.'}
+      title={isEdit ? t('languageFormModal.titleEdit') : t('languageFormModal.titleCreate')}
+      description={isEdit ? t('languageFormModal.descriptionEdit') : t('languageFormModal.descriptionCreate')}
       footer={footer}
       size="lg"
     >
       {(validationError || errorMessage) && (
-        <Alert variant="danger" title="Revisa el formulario" description={validationError ?? errorMessage ?? undefined} />
+        <Alert variant="danger" title={t('languageFormModal.alertTitle')} description={validationError ?? errorMessage ?? undefined} />
       )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <Input
-          label="Nombre del idioma"
-          placeholder="Spanish"
+          label={t('languageFormModal.fields.nameLabel')}
+          placeholder={t('languageFormModal.fields.namePlaceholder')}
           value={name}
           onChange={(event) => {
             const nextValue = event.target.value
@@ -167,8 +173,8 @@ export const LanguageFormModal = ({
           error={fieldErrors.name}
         />
         <Input
-          label="Código ISO"
-          placeholder="es"
+          label={t('languageFormModal.fields.isoLabel')}
+          placeholder={t('languageFormModal.fields.isoPlaceholder')}
           value={isoCode}
           onChange={(event) => {
             const nextValue = event.target.value
@@ -176,12 +182,12 @@ export const LanguageFormModal = ({
             validateField('isoCode', nextValue)
           }}
           disabled={isSubmitting}
-          helperText={isEdit ? 'No se puede cambiar en edición.' : 'Ej: es, en, pt-BR'}
+          helperText={isEdit ? t('languageFormModal.fields.isoHelperEdit') : t('languageFormModal.fields.isoHelperCreate')}
           error={fieldErrors.isoCode}
         />
         <Input
-          label="Nombre nativo"
-          placeholder="Español"
+          label={t('languageFormModal.fields.nativeLabel')}
+          placeholder={t('languageFormModal.fields.nativePlaceholder')}
           value={nativeName}
           onChange={(event) => {
             const nextValue = event.target.value
@@ -192,7 +198,7 @@ export const LanguageFormModal = ({
           error={fieldErrors.nativeName}
         />
         <Input
-          label="Orden"
+          label={t('languageFormModal.fields.orderLabel')}
           type="number"
           value={String(sortOrder)}
           onChange={(event) => {
@@ -207,8 +213,8 @@ export const LanguageFormModal = ({
 
       <div className="mt-4">
         <Switch
-          label={isActive ? 'Idioma activo' : 'Idioma deshabilitado'}
-          description="Los idiomas deshabilitados no aparecen en selectores."
+          label={isActive ? t('languageFormModal.switch.active') : t('languageFormModal.switch.inactive')}
+          description={t('languageFormModal.switch.description')}
           checked={isActive}
           onChange={(event) => {
             setIsActive(event.target.checked)

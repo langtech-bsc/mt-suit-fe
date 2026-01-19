@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Alert, Badge, Button, Card, ConfirmDialog, PageLoader, Switch } from '../../../components/ui'
 import { providerAdminService } from '../../providers/services/providerAdmin.service'
 import type { ProviderCreateInput, ProviderRecord, ProviderUpdateInput } from '../../providers/types'
@@ -18,6 +19,7 @@ const formatDateTime = (value?: string) => {
 
 export const AdminProvidersView = () => {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
 
   const pagination = useMemo(
     () => ({
@@ -82,7 +84,7 @@ export const AdminProvidersView = () => {
       upsertCachedProvider(created)
       queryClient.invalidateQueries({ queryKey: ['admin-providers'] })
       setCreateOpen(false)
-      setFeedback({ variant: 'success', message: `Proveedor "${created.name}" creado.` })
+      setFeedback({ variant: 'success', message: t('adminProviders.feedback.created', { name: created.name }) })
     },
     onError: (err) => setFormError(err.message),
   })
@@ -100,7 +102,7 @@ export const AdminProvidersView = () => {
       if (variables.successMessage) {
         setFeedback({ variant: 'success', message: variables.successMessage })
       } else {
-        setFeedback({ variant: 'success', message: `Proveedor "${updated.name}" actualizado.` })
+        setFeedback({ variant: 'success', message: t('adminProviders.feedback.updated', { name: updated.name }) })
       }
     },
     onError: (err) => setFormError(err.message),
@@ -112,7 +114,7 @@ export const AdminProvidersView = () => {
       removeCachedProvider(providerId)
       queryClient.invalidateQueries({ queryKey: ['admin-providers'] })
       if (deletingProvider) {
-        setFeedback({ variant: 'success', message: `Proveedor "${deletingProvider.name}" eliminado.` })
+        setFeedback({ variant: 'success', message: t('adminProviders.feedback.deleted', { name: deletingProvider.name }) })
       }
       setDeletingProvider(null)
     },
@@ -170,7 +172,9 @@ export const AdminProvidersView = () => {
         inputLanguageIds: record.inputLanguageIds,
         outputLanguageIds: record.outputLanguageIds,
       },
-      successMessage: nextActive ? `Proveedor "${record.name}" activado.` : `Proveedor "${record.name}" deshabilitado.`,
+      successMessage: nextActive
+        ? t('adminProviders.feedback.activated', { name: record.name })
+        : t('adminProviders.feedback.disabled', { name: record.name }),
     })
   }
 
@@ -189,31 +193,36 @@ export const AdminProvidersView = () => {
         inputLanguageIds: record.inputLanguageIds,
         outputLanguageIds: record.outputLanguageIds,
       },
-      successMessage: nextDefault ? `Proveedor "${record.name}" marcado como default.` : `Proveedor "${record.name}" dejó de ser default.`,
+      successMessage: nextDefault
+        ? t('adminProviders.feedback.setDefault', { name: record.name })
+        : t('adminProviders.feedback.unsetDefault', { name: record.name }),
     })
   }
 
   const isMutating = createMutation.isPending ?? updateMutation.isPending ?? deleteMutation.isPending
 
   if (isLoadingProviders) {
-    return <PageLoader message="Cargando proveedores…" />
+    return <PageLoader message={t('adminProviders.loading')} />
   }
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-bsc-blue-dark dark:text-white">Providers</h1>
+          <h1 className="text-2xl font-bold text-bsc-blue-dark dark:text-white">{t('adminProviders.header.title')}</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
-            Administra proveedores de traducción. Datos: skip {providersPayload?.skip ?? pagination.skip}, limit {providersPayload?.limit ?? pagination.limit}.
+            {t('adminProviders.header.subtitle', {
+              skip: providersPayload?.skip ?? pagination.skip,
+              limit: providersPayload?.limit ?? pagination.limit,
+            })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={() => refetchProviders()} disabled={isFetchingProviders}>
-            {isFetchingProviders ? 'Sincronizando…' : 'Refrescar'}
+            {isFetchingProviders ? t('adminProviders.actions.syncing') : t('adminProviders.actions.refresh')}
           </Button>
           <Button variant="primary" onClick={handleOpenCreate} disabled={isMutating}>
-            Añadir provider
+            {t('adminProviders.actions.addProvider')}
           </Button>
         </div>
       </div>
@@ -221,26 +230,32 @@ export const AdminProvidersView = () => {
       {providersError?.message && (
         <Alert
           variant="danger"
-          title="No pudimos cargar los proveedores"
+          title={t('adminProviders.alerts.loadErrorTitle')}
           description={providersError.message}
           actions={
             <Button variant="outline" size="sm" onClick={() => refetchProviders()} disabled={isFetchingProviders}>
-              Reintentar
+              {t('adminProviders.actions.retry')}
             </Button>
           }
         />
       )}
 
-      {feedback && <Alert variant={feedback.variant} title={feedback.variant === 'success' ? 'Listo' : 'Atención'} description={feedback.message} />}
-      {formError && <Alert variant="danger" title="No pudimos completar la acción" description={formError} />}
+      {feedback && (
+        <Alert
+          variant={feedback.variant}
+          title={feedback.variant === 'success' ? t('adminProviders.alerts.successTitle') : t('adminProviders.alerts.warningTitle')}
+          description={feedback.message}
+        />
+      )}
+      {formError && <Alert variant="danger" title={t('adminProviders.alerts.actionErrorTitle')} description={formError} />}
 
       <Card className="space-y-4">
         {providers.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-slate-700">
-            <p className="text-sm text-gray-600 dark:text-slate-300">No hay proveedores registrados.</p>
+            <p className="text-sm text-gray-600 dark:text-slate-300">{t('adminProviders.empty.title')}</p>
             <div className="mt-4">
               <Button variant="primary" onClick={handleOpenCreate}>
-                Crear primer provider
+                {t('adminProviders.empty.cta')}
               </Button>
             </div>
           </div>
@@ -250,19 +265,19 @@ export const AdminProvidersView = () => {
               <thead className="text-xs uppercase text-gray-500 dark:text-slate-400">
                 <tr className="bg-gray-50 dark:bg-slate-900/40">
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Nombre
+                    {t('adminProviders.table.name')}
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Estado
+                    {t('adminProviders.table.status')}
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Default
+                    {t('adminProviders.table.default')}
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Actualizado
+                    {t('adminProviders.table.updated')}
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Acciones
+                    {t('adminProviders.table.actions')}
                   </th>
                 </tr>
               </thead>
@@ -274,7 +289,7 @@ export const AdminProvidersView = () => {
                     <tr key={record.id} className="bg-white transition hover:bg-blue-50/40 dark:bg-slate-900 dark:hover:bg-slate-800">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-bsc-blue-dark dark:text-slate-100">{record.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">ID: {record.id}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{t('adminProviders.table.idLabel', { id: record.id })}</p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-3">
@@ -282,10 +297,10 @@ export const AdminProvidersView = () => {
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
                             disabled={isUpdatingThis ?? isMutating}
-                            aria-label="Activar o desactivar provider"
+                            aria-label={t('adminProviders.table.toggleActiveAria')}
                           />
                           <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
-                            {record.isActive ? 'Activo' : 'Inactivo'}
+                            {record.isActive ? t('adminProviders.table.active') : t('adminProviders.table.inactive')}
                           </Badge>
                         </div>
                       </td>
@@ -295,14 +310,14 @@ export const AdminProvidersView = () => {
                             checked={record.isDefault}
                             onChange={(event) => handleToggleDefault(record, event.target.checked)}
                             disabled={isUpdatingThis ?? isMutating}
-                            aria-label="Marcar provider como default"
+                            aria-label={t('adminProviders.table.toggleDefaultAria')}
                           />
                           {record.isDefault ? (
                             <Badge variant="info" size="sm">
-                              Default
+                              {t('adminProviders.table.defaultBadge')}
                             </Badge>
                           ) : (
-                            <span className="text-xs text-gray-500 dark:text-slate-400">—</span>
+                            <span className="text-xs text-gray-500 dark:text-slate-400">{t('adminProviders.table.dash')}</span>
                           )}
                         </div>
                       </td>
@@ -310,10 +325,10 @@ export const AdminProvidersView = () => {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleOpenEdit(record)} disabled={isMutating}>
-                            Editar
+                            {t('adminProviders.actions.edit')}
                           </Button>
                           <Button variant="danger" size="sm" onClick={() => setDeletingProvider(record)} disabled={isMutating}>
-                            Eliminar
+                            {t('adminProviders.actions.delete')}
                           </Button>
                         </div>
                       </td>
@@ -349,12 +364,12 @@ export const AdminProvidersView = () => {
 
       <ConfirmDialog
         open={Boolean(deletingProvider)}
-        title="Eliminar provider"
+        title={t('adminProviders.confirmDelete.title')}
         description={
-          deletingProvider ? `Esto eliminará el provider "${deletingProvider.name}". Esta acción no se puede deshacer.` : undefined
+          deletingProvider ? t('adminProviders.confirmDelete.description', { name: deletingProvider.name }) : undefined
         }
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
+        confirmLabel={t('adminProviders.confirmDelete.confirm')}
+        cancelLabel={t('adminProviders.confirmDelete.cancel')}
         variant="danger"
         onClose={() => setDeletingProvider(null)}
         onConfirm={() => {
