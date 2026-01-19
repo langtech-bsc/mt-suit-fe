@@ -22,11 +22,11 @@ export const Route = createFileRoute("/ui")({
     component: UIShowcase,
 });
 
-function SectionTitle({ children }: Readonly<{ children: string }>) {
+export function SectionTitle({ children }: Readonly<{ children: string }>) {
     return <h2 className="text-lg font-semibold text-bsc-blue-dark">{children}</h2>;
 }
 
-function SectionWrapper({ children }: Readonly<{ children: ReactNode }>) {
+export function SectionWrapper({ children }: Readonly<{ children: ReactNode }>) {
     return (
         <Card padding="lg" className="space-y-6">
             {children}
@@ -34,7 +34,7 @@ function SectionWrapper({ children }: Readonly<{ children: ReactNode }>) {
     );
 }
 
-function UIShowcase() {
+export function UIShowcase() {
     return (
         <div className="space-y-8 bg-gradient-to-b from-white to-blue-50/40 p-6">
             <header>

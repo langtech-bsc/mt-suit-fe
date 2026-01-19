@@ -11,6 +11,6 @@ export const Route = createFileRoute('/translator/')({
   component: TranslatorIndexRoute,
 })
 
-function TranslatorIndexRoute() {
+export function TranslatorIndexRoute() {
   return <TranslatorView />
 }

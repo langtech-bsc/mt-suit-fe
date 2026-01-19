@@ -16,6 +16,6 @@ export const Route = createFileRoute('/translator')({
   component: TranslatorLayout,
 })
 
-function TranslatorLayout() {
+export function TranslatorLayout() {
   return <Outlet />
 }

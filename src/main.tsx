@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
+import './i18n'
 import { ThemeProvider } from './features/theme/ThemeProvider'
 
 // Import the generated route tree

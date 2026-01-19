@@ -48,7 +48,7 @@ export const Route = createFileRoute('/login')({
   component: LoginRoute,
 })
 
-function LoginRoute() {
+export function LoginRoute() {
   const { redirect: redirectTo, reason } = Route.useSearch()
   const safeRedirect = sanitizeRedirect(redirectTo)
 

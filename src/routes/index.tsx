@@ -6,7 +6,7 @@ export const Route = createFileRoute('/')({
   component: Index,
 })
 
-function Index() {
+export function Index() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
       <section className="rounded-3xl bg-gradient-to-r from-[#00377b] via-bsc-blue-medium to-sky-500 p-10 text-white shadow-2xl space-y-3">
