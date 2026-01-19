@@ -23,7 +23,8 @@ Interfaz web para el módulo de traducción, grammar checker y post-editing del 
 ### 🌍 Internacionalización (i18n)
 
 - Config: `src/i18n.ts`
-- Literales: `src/i18n/resources.ts`
+- Resources: `src/i18n/resources.ts` (agrega/modifica idiomas aquí)
+- Literales por idioma: `src/i18n/locales/{es,en,ca}/common.ts`
 - Persistencia de idioma: `localStorage.appLanguage` (soporta `es`, `en`, `ca`)
 
 ## 🚀 Puesta en marcha

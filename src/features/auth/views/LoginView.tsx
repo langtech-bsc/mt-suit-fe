@@ -2,18 +2,17 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Card, Checkbox, Input, PasswordInput } from '../../../components/ui'
 import { BrandLogo } from '../../../components/BrandLogo'
 import { useAuthStore } from '../store/auth.store'
 import type { AppRoutePath } from '../../../routes/types'
 
-const loginSchema = z.object({
-  username: z.string().min(3, 'El usuario es obligatorio.'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
-  rememberMe: z.boolean().optional(),
-})
-
-type LoginFormValues = z.infer<typeof loginSchema>
+type LoginFormValues = {
+  username: string
+  password: string
+  rememberMe?: boolean
+}
 
 interface LoginViewProps {
   redirectTo?: AppRoutePath
@@ -22,10 +21,21 @@ interface LoginViewProps {
 
 export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginViewProps) => {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [genericError, setGenericError] = useState<string | null>(null)
   const status = useAuthStore((state) => state.status)
   const login = useAuthStore((state) => state.login)
   const error = useAuthStore((state) => state.error)
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(3, t('login.validation.usernameRequired')),
+        password: z.string().min(8, t('login.validation.passwordMin')),
+        rememberMe: z.boolean().optional(),
+      }),
+    [t],
+  )
 
   const {
     register,
@@ -49,15 +59,17 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
     }
 
     if (sessionReason === 'expired') {
-      return 'Tu sesión expiró, por favor vuelve a iniciar sesión para continuar.'
+      return t('login.session.expired')
     }
 
     if (sessionReason === 'unauthorized') {
-      return 'Inicia sesión para acceder al Traductor.'
+      return t('login.session.unauthorized')
     }
 
     return null
-  }, [sessionReason])
+  }, [sessionReason, t])
+
+  const submitLabel = isLoading ? t('login.form.submitting') : t('login.form.submit')
 
   const onSubmit = handleSubmit(async (values) => {
     setGenericError(null)
@@ -76,7 +88,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
       await login(validation.data)
       navigate({ to: redirectTo, replace: true })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No pudimos iniciar sesión, intenta nuevamente.'
+      const message = err instanceof Error ? err.message : t('login.validation.genericFailure')
       setGenericError(message)
     }
   })
@@ -92,16 +104,16 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
             className="justify-start"
           />
           <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-blue-100">BSC Translation</p>
-            <h1 className="mt-3 text-4xl font-semibold leading-tight">Accede al panel de Traducción Inteligente</h1>
+            <p className="text-sm uppercase tracking-[0.25em] text-blue-100">{t('login.hero.productName')}</p>
+            <h1 className="mt-3 text-4xl font-semibold leading-tight">{t('login.hero.title')}</h1>
             <p className="mt-4 text-base text-blue-100/90">
-              Traducción neural, grammar checker y post-editing en un único espacio seguro para equipos del BSC.
+              {t('login.hero.description')}
             </p>
           </div>
           <ul className="space-y-3 text-sm text-blue-100/90">
             <li className="flex items-center gap-2">
-              <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" /> {" "}
-              Experiencia consistente para traducción, grammar checker y post-editing.
+              <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" />
+              {t('login.hero.bullet')}
             </li>
           </ul>
         </section>
@@ -110,23 +122,27 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
           <Card padding="lg" className="w-full max-w-md shadow-2xl  md:p-10">
             <header className="mb-8 space-y-3">
               <BrandLogo showText={false} imgClassName="h-12" className="justify-start" />
-              <h2 className="mt-2 text-2xl font-bold text-bsc-blue-dark">Bienvenido de nuevo</h2>
-              <p className="text-sm text-gray-500">Usa tus credenciales corporativas para continuar.</p>
+              <h2 className="mt-2 text-2xl font-bold text-bsc-blue-dark">{t('login.card.title')}</h2>
+              <p className="text-sm text-gray-500">{t('login.card.subtitle')}</p>
             </header>
 
             <form onSubmit={onSubmit} className="space-y-6">
               {sessionMessage && (
-                <Alert variant="warning" title="Sesión finalizada" description={sessionMessage} />
+                <Alert variant="warning" title={t('login.alerts.sessionEndedTitle')} description={sessionMessage} />
               )}
 
               {(genericError || error) && (
-                <Alert variant="danger" title="No pudimos iniciar sesión" description={genericError ?? error ?? undefined} />
+                <Alert
+                  variant="danger"
+                  title={t('login.alerts.loginFailedTitle')}
+                  description={genericError ?? error ?? undefined}
+                />
               )}
 
               <Input
-                label="Usuario"
+                label={t('login.form.usernameLabel')}
                 type="text"
-                placeholder="usuario.corporativo"
+                placeholder={t('login.form.usernamePlaceholder')}
                 autoComplete="username"
                 disabled={isLoading}
                 {...register('username')}
@@ -134,7 +150,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
               />
 
               <PasswordInput
-                label="Contraseña"
+                label={t('login.form.passwordLabel')}
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isLoading}
@@ -144,7 +160,7 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
 
               <div className="flex items-center justify-between">
                 <Checkbox
-                  label="Recordar sesión"
+                  label={t('login.form.rememberMe')}
                   disabled={isLoading}
                   {...register('rememberMe')}
                 />
@@ -154,12 +170,12 @@ export const LoginView = ({ redirectTo = '/translator', sessionReason }: LoginVi
               </div>
 
               <Button type="submit" variant="primary" disabled={isLoading} className="w-full justify-center py-3 text-base">
-                {isLoading ? 'Validando credenciales...' : 'Ingresar'}
+                {submitLabel}
               </Button>
             </form>
 
             <footer className="mt-8 text-center text-xs text-gray-500">
-              Si necesitas acceso, contacta a Seguridad TI BSC.
+              {t('login.card.footer')}
             </footer>
           </Card>
         </section>
