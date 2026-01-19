@@ -34,7 +34,6 @@ export const Route = createFileRoute('/admin/languages')({
   component: AdminLanguagesRoute,
 })
 
-function AdminLanguagesRoute() {
+export function AdminLanguagesRoute() {
   return <AdminLanguagesView />
 }
-

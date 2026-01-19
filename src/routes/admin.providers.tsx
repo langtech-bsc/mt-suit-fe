@@ -34,7 +34,6 @@ export const Route = createFileRoute('/admin/providers')({
   component: AdminProvidersRoute,
 })
 
-function AdminProvidersRoute() {
+export function AdminProvidersRoute() {
   return <AdminProvidersView />
 }
-

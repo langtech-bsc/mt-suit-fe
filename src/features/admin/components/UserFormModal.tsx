@@ -2,33 +2,28 @@
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Checkbox, Input, Modal, Select, Switch } from '../../../components/ui'
 import type { AdminUserRecord } from '../types'
 import { useAuthStore } from '../../auth/store/auth.store'
 
 type Mode = 'create' | 'edit'
 
-const createSchema = z.object({
-  username: z.string().min(1, 'El usuario es obligatorio.'),
-  email: z.email('Ingresa un email válido.'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
-  role: z
-    .string()
-    .min(1, 'Selecciona un rol.')
-    .refine((value) => value !== 'all', 'Selecciona un rol.'),
-})
+export type CreateUserInput = {
+  username: string
+  email: string
+  password: string
+  role: string
+}
 
-const editSchema = z.object({
-  username: z.string().min(1, 'El usuario es obligatorio.'),
-  email: z.email('Ingresa un email válido.'),
-  password: z.string().optional(),
-  isActive: z.boolean(),
-  role: z.string().min(1, 'Selecciona un rol.'),
-  isSuperuser: z.boolean().optional(),
-})
-
-export type CreateUserInput = z.infer<typeof createSchema>
-export type EditUserInput = z.infer<typeof editSchema>
+export type EditUserInput = {
+  username: string
+  email: string
+  password?: string
+  isActive: boolean
+  role: string
+  isSuperuser?: boolean
+}
 
 interface UserFormModalProps {
   open: boolean
@@ -53,6 +48,7 @@ export const UserFormModal = ({
   onCreate,
   onEdit,
 }: UserFormModalProps) => {
+  const { t } = useTranslation()
   const isEdit = mode === 'edit'
 
   const currentUserLogged = useAuthStore((state) => state.user)
@@ -75,6 +71,33 @@ export const UserFormModal = ({
     }
     return roleOptions.includes(candidate) ? candidate : (roleOptions[0] ?? '')
   }, [user, roleOptions])
+
+  const createSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t('userFormModal.validation.usernameRequired')),
+        email: z.email(t('userFormModal.validation.emailInvalid')),
+        password: z.string().min(6, t('userFormModal.validation.passwordMin')),
+        role: z
+          .string()
+          .min(1, t('userFormModal.validation.roleRequired'))
+          .refine((value) => value !== 'all', t('userFormModal.validation.roleRequired')),
+      }),
+    [t],
+  )
+
+  const editSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t('userFormModal.validation.usernameRequired')),
+        email: z.email(t('userFormModal.validation.emailInvalid')),
+        password: z.string().optional(),
+        isActive: z.boolean(),
+        role: z.string().min(1, t('userFormModal.validation.roleRequired')),
+        isSuperuser: z.boolean().optional(),
+      }),
+    [t],
+  )
 
   const createForm = useForm<CreateUserInput>({
     mode: 'onChange',
@@ -168,11 +191,11 @@ export const UserFormModal = ({
     onEdit(user.id, validation.data)
   })
 
-  let buttonText = 'Crear usuario'
+  let buttonText = t('userFormModal.buttons.create')
   if (isSubmitting) {
-    buttonText = 'Guardando…'
+    buttonText = t('userFormModal.buttons.saving')
   } else if (isEdit) {
-    buttonText = 'Guardar cambios'
+    buttonText = t('userFormModal.buttons.saveChanges')
   }
 
   const isCreateDisabled = !isEdit && !hasRoleOptions
@@ -181,7 +204,7 @@ export const UserFormModal = ({
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-        Cancelar
+        {t('userFormModal.buttons.cancel')}
       </Button>
       <Button
         variant="primary"
@@ -197,23 +220,25 @@ export const UserFormModal = ({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Editar usuario' : 'Nuevo usuario'}
-      description={isEdit ? 'Actualiza datos básicos y estado de la cuenta.' : 'Crea una cuenta con credenciales iniciales.'}
+      title={isEdit ? t('userFormModal.titleEdit') : t('userFormModal.titleCreate')}
+      description={isEdit ? t('userFormModal.descriptionEdit') : t('userFormModal.descriptionCreate')}
       footer={footer}
     >
-      {errorMessage && <Alert variant="danger" title={"No pudimos completar la acción"} description={errorMessage} />}
+      {errorMessage && (
+        <Alert variant="danger" title={t('userFormModal.actionErrorTitle')} description={errorMessage} />
+      )}
       {!isEdit && !hasRoleOptions && (
         <Alert
           variant="warning"
-          title="Sin roles disponibles"
-          description="No hay roles cargados para asignar. Refresca la vista o crea roles antes de crear usuarios."
+          title={t('userFormModal.noRolesTitle')}
+          description={t('userFormModal.noRolesCreateDescription')}
         />
       )}
       {isEdit && !hasRoleOptions && (
         <Alert
           variant="warning"
-          title="Sin roles disponibles"
-          description="No hay roles cargados para asignar. Refresca la vista antes de editar usuarios."
+          title={t('userFormModal.noRolesTitle')}
+          description={t('userFormModal.noRolesEditDescription')}
         />
       )}
 
@@ -222,48 +247,49 @@ export const UserFormModal = ({
           <input
             type="hidden"
             {...createForm.register('role', {
-              validate: (value) => createSchema.shape.role.safeParse(value).success ?? 'Selecciona un rol.',
+              validate: (value) => createSchema.shape.role.safeParse(value).success || t('userFormModal.validation.roleRequired'),
             })}
           />
           <Input
-            label="Usuario"
-            placeholder="usuario.corporativo"
+            label={t('userFormModal.fields.usernameLabel')}
+            placeholder={t('userFormModal.fields.usernamePlaceholder')}
             disabled={isSubmitting}
             {...createForm.register('username', {
-              validate: (value) => createSchema.shape.username.safeParse(value).success ?? 'El usuario es obligatorio.',
+              validate: (value) =>
+                createSchema.shape.username.safeParse(value).success || t('userFormModal.validation.usernameRequired'),
             })}
             error={createForm.formState.errors.username?.message}
           />
           <Input
-            label="Email"
+            label={t('userFormModal.fields.emailLabel')}
             type="email"
-            placeholder="user@example.com"
+            placeholder={t('userFormModal.fields.emailPlaceholder')}
             disabled={isSubmitting}
             {...createForm.register('email', {
-              validate: (value) => createSchema.shape.email.safeParse(value).success ?? 'Ingresa un email válido.',
+              validate: (value) => createSchema.shape.email.safeParse(value).success || t('userFormModal.validation.emailInvalid'),
             })}
             error={createForm.formState.errors.email?.message}
           />
           <Input
-            label="Contraseña"
+            label={t('userFormModal.fields.passwordLabel')}
             type="password"
-            placeholder="••••••••"
+            placeholder={t('userFormModal.fields.passwordPlaceholder')}
             disabled={isSubmitting}
             {...createForm.register('password', {
               validate: (value) =>
-                createSchema.shape.password.safeParse(value).success ?? 'La contraseña debe tener al menos 6 caracteres.',
+                createSchema.shape.password.safeParse(value).success || t('userFormModal.validation.passwordMin'),
             })}
             error={createForm.formState.errors.password?.message}
           />
           <div className="w-full sm:w-64">
             <Select
-              label="Rol"
+              label={t('userFormModal.fields.roleLabel')}
               value={createForm.watch('role') ?? ''}
               onChange={(event) =>
                 createForm.setValue('role', event.target.value, { shouldDirty: true, shouldValidate: true })
               }
               disabled={isSubmitting || !hasRoleOptions}
-              helperText="Obligatorio. Se asigna justo después de crear el usuario."
+              helperText={t('userFormModal.fields.roleCreateHelper')}
               options={[
                 ...roleOptions.map((value) => ({ value, label: value })),
               ]}
@@ -278,37 +304,38 @@ export const UserFormModal = ({
           <input
             type="hidden"
             {...editForm.register('role', {
-              validate: (value) => editSchema.shape.role.safeParse(value).success ?? 'Selecciona un rol.',
+              validate: (value) => editSchema.shape.role.safeParse(value).success || t('userFormModal.validation.roleRequired'),
             })}
           />
           <Input
-            label="Usuario"
+            label={t('userFormModal.fields.usernameLabel')}
             disabled={isSubmitting}
             {...editForm.register('username', {
-              validate: (value) => editSchema.shape.username.safeParse(value).success ?? 'El usuario es obligatorio.',
+              validate: (value) =>
+                editSchema.shape.username.safeParse(value).success || t('userFormModal.validation.usernameRequired'),
             })}
             error={editForm.formState.errors.username?.message}
           />
           <Input
-            label="Email"
+            label={t('userFormModal.fields.emailLabel')}
             type="email"
             disabled={isSubmitting}
             {...editForm.register('email', {
-              validate: (value) => editSchema.shape.email.safeParse(value).success ?? 'Ingresa un email válido.',
+              validate: (value) => editSchema.shape.email.safeParse(value).success || t('userFormModal.validation.emailInvalid'),
             })}
             error={editForm.formState.errors.email?.message}
           />
           <Input
-            label="Nueva contraseña (opcional)"
+            label={t('userFormModal.fields.newPasswordLabel')}
             type="password"
-            placeholder="Dejar vacío para mantener"
+            placeholder={t('userFormModal.fields.newPasswordPlaceholder')}
             disabled={isSubmitting}
             {...editForm.register('password', { validate: () => true })}
             error={editForm.formState.errors.password?.message}
           />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Switch
-              label={editForm.watch('isActive') ? 'Cuenta activa' : 'Cuenta inactiva'}
+              label={editForm.watch('isActive') ? t('userFormModal.switches.active') : t('userFormModal.switches.inactive')}
               checked={editForm.watch('isActive')}
               onChange={(event) =>
                 editForm.setValue('isActive', event.target.checked, { shouldDirty: true, shouldValidate: true })
@@ -317,13 +344,13 @@ export const UserFormModal = ({
             />
             <div className="w-full sm:w-64">
               <Select
-                label="Rol"
+                label={t('userFormModal.fields.roleLabel')}
                 value={editForm.watch('role') ?? ''}
                 onChange={(event) =>
                   editForm.setValue('role', event.target.value, { shouldDirty: true, shouldValidate: true })
                 }
                 disabled={isSubmitting || !hasRoleOptions}
-                helperText="Se asigna vía endpoint de roles."
+                helperText={t('userFormModal.fields.roleEditHelper')}
                 options={[
                   ...roleOptions.map((value) => ({ value, label: value })),
                 ]}
@@ -342,8 +369,8 @@ export const UserFormModal = ({
                   editForm.setValue('isSuperuser', event.target.checked, { shouldDirty: true, shouldValidate: true })
                 }
                 disabled={isSubmitting}
-                label="Marcar como superuser"
-                helperText="Solo disponible para usuarios con rol admin. Habilita acceso completo a la consola."
+                label={t('userFormModal.superuser.label')}
+                helperText={t('userFormModal.superuser.helper')}
               />
             </div>
           )}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Alert, Badge, Button, Card, ConfirmDialog, PageLoader, Switch } from '../../../components/ui'
 import { useAuthStore } from '../../auth/store/auth.store'
 import { adminRolesService } from '../services/adminRoles.service'
@@ -86,6 +87,7 @@ const matchesQuery = (record: AdminUserRecord, query: string) => {
 export const AdminUsersView = () => {
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
 
   const [filters, setFilters] = useState<UsersFiltersState>({
     query: '',
@@ -194,7 +196,7 @@ export const AdminUsersView = () => {
       const roleName = role.trim()
       const roleId = roleNameToId.get(roleName)
       if (typeof roleId !== 'number') {
-        throw new Error('No pudimos identificar el rol seleccionado. Refresca la lista de roles e inténtalo de nuevo.')
+        throw new Error(t('adminUsers.errors.roleIdentify'))
       }
       await adminRolesService.assignRole({ userId: created.id, roleId })
 
@@ -203,7 +205,7 @@ export const AdminUsersView = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       setCreateOpen(false)
-      setActionFeedback({ variant: 'success', message: 'Usuario creado correctamente.' })
+      setActionFeedback({ variant: 'success', message: t('adminUsers.feedback.created') })
     },
     onError: (error) => {
       setActionError(error.message)
@@ -251,7 +253,7 @@ export const AdminUsersView = () => {
       const previousUser = users.find((item) => item.id === variables.userId)
       updateCachedUser(updated, previousUser?.roles)
       setEditingUser(null)
-      setActionFeedback({ variant: 'success', message: 'Usuario actualizado correctamente.' })
+      setActionFeedback({ variant: 'success', message: t('adminUsers.feedback.updated') })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
@@ -264,7 +266,7 @@ export const AdminUsersView = () => {
       removeCachedUser(userId)
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       if (deletingUser) {
-        setActionFeedback({ variant: 'success', message: `Usuario "${deletingUser.username}" eliminado.` })
+        setActionFeedback({ variant: 'success', message: t('adminUsers.feedback.deleted', { username: deletingUser.username }) })
       }
       setDeletingUser(null)
     },
@@ -275,7 +277,7 @@ export const AdminUsersView = () => {
   })
 
   if (!user) {
-    return <PageLoader message="Cargando consola de administración…" />
+    return <PageLoader message={t('adminUsers.loadingAdmin')} />
   }
 
   const isMutating = createUserMutation.isPending ?? updateUserMutation.isPending ?? deleteUserMutation.isPending
@@ -327,7 +329,7 @@ export const AdminUsersView = () => {
     const shouldAssignRole = nextRoleName !== currentRoleName
     const roleId = roleNameToId.get(nextRoleName)
     if (typeof roleId !== 'number') {
-      setActionError('No pudimos identificar el rol seleccionado. Refresca la lista de roles e inténtalo de nuevo.')
+      setActionError(t('adminUsers.errors.roleIdentify'))
       return
     }
 
@@ -384,19 +386,19 @@ export const AdminUsersView = () => {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-slate-300">
-            Governance
+            {t('adminUsers.header.sectionLabel')}
           </p>
-          <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Usuarios y roles</h1>
+          <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">{t('adminUsers.header.title')}</h1>
           <p className="text-sm text-gray-600 dark:text-slate-300">
-            Filtra, crea y actualiza usuarios. Los cambios de estado se aplican al instante.
+            {t('adminUsers.header.subtitle')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleRefreshUsers} disabled={isFetchingUsers}>
-            {isFetchingUsers ? 'Actualizando…' : 'Refrescar'}
+            {isFetchingUsers ? t('adminUsers.actions.refreshing') : t('adminUsers.actions.refresh')}
           </Button>
           <Button variant="primary" size="sm" onClick={handleOpenCreate} disabled={isMutating}>
-            Nuevo usuario
+            {t('adminUsers.actions.newUser')}
           </Button>
         </div>
       </header>
@@ -406,34 +408,30 @@ export const AdminUsersView = () => {
       {actionFeedback && (
         <Alert
           variant={actionFeedback.variant === 'success' ? 'success' : 'danger'}
-          title={actionFeedback.variant === 'success' ? 'Listo' : 'Error'}
+          title={actionFeedback.variant === 'success' ? t('adminUsers.alerts.successTitle') : t('adminUsers.alerts.errorTitle')}
           description={actionFeedback.message}
         />
       )}
-      {actionError && <Alert variant="danger" title="Acción fallida" description={actionError} />}
+      {actionError && <Alert variant="danger" title={t('adminUsers.alerts.actionFailedTitle')} description={actionError} />}
       {usersErrorMessage && (
-        <Alert variant="danger" title="No pudimos obtener la lista" description={usersErrorMessage} />
+        <Alert variant="danger" title={t('adminUsers.alerts.listLoadTitle')} description={usersErrorMessage} />
       )}
 
       <Card padding="lg" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600 dark:text-slate-400">
-          <p>
-            Mostrando{' '}
-            <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{filteredUsers.length}</span> de{' '}
-            <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{users.length}</span>
-          </p>
+          <p>{t('adminUsers.summary.showing', { shown: filteredUsers.length, total: users.length })}</p>
         </div>
 
         {(() => {
           if (isLoadingUsers) {
-            return <PageLoader fullscreen={false} message="Cargando usuarios…" />
+            return <PageLoader fullscreen={false} message={t('adminUsers.loadingUsers')} />
           }
           if (filteredUsers.length === 0) {
             return (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-                <p className="text-base font-semibold text-bsc-blue-dark dark:text-white">Sin resultados</p>
+                <p className="text-base font-semibold text-bsc-blue-dark dark:text-white">{t('adminUsers.empty.title')}</p>
                 <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-                  Ajusta filtros o crea un nuevo usuario para comenzar.
+                  {t('adminUsers.empty.description')}
                 </p>
               </div>
             )
@@ -444,19 +442,19 @@ export const AdminUsersView = () => {
                 <thead className="text-xs uppercase text-gray-500 dark:text-slate-400">
                   <tr className="bg-gray-50 dark:bg-slate-900/40">
                     <th scope="col" className="px-4 py-3 font-semibold">
-                      Usuario
+                      {t('adminUsers.table.user')}
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold">
-                      Estado
+                      {t('adminUsers.table.status')}
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold">
-                      Roles
+                      {t('adminUsers.table.roles')}
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold">
-                      Actualizado
+                      {t('adminUsers.table.updated')}
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold">
-                      Acciones
+                      {t('adminUsers.table.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -480,14 +478,14 @@ export const AdminUsersView = () => {
                             checked={record.isActive}
                             onChange={(event) => handleToggleActive(record, event.target.checked)}
                             disabled={isUpdatingThis ?? isSelf}
-                            aria-label="Activar o desactivar usuario"
+                            aria-label={t('adminUsers.table.toggleActiveAria')}
                           />
-                            <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
-                              {record.isActive ? 'Activo' : 'Inactivo'}
-                            </Badge>
+                          <Badge variant={record.isActive ? 'success' : 'warning'} size="sm">
+                            {record.isActive ? t('adminUsers.table.active') : t('adminUsers.table.inactive')}
+                          </Badge>
                             {record.isSuperuser && record.roles[0]?.name === "admin" && (
                               <Badge variant="outline" size="sm">
-                                Superuser
+                                {t('adminUsers.table.superuser')}
                               </Badge>
                             )}
                           </div>
@@ -502,12 +500,12 @@ export const AdminUsersView = () => {
                               ))}
                               {record.roles.length > 3 && (
                                 <span className="text-xs text-gray-500 dark:text-slate-400">
-                                  +{record.roles.length - 3} más
+                                  {t('adminUsers.table.rolesMore', { count: record.roles.length - 3 })}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-500 dark:text-slate-400">Sin roles</span>
+                            <span className="text-xs text-gray-500 dark:text-slate-400">{t('adminUsers.table.rolesNone')}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
@@ -516,7 +514,7 @@ export const AdminUsersView = () => {
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleOpenEdit(record)} disabled={isMutating}>
-                              Editar
+                              {t('adminUsers.actions.edit')}
                             </Button>
                             <Button
                               variant="danger"
@@ -524,7 +522,7 @@ export const AdminUsersView = () => {
                               onClick={() => handleRequestDelete(record)}
                               disabled={isMutating ?? isSelf}
                             >
-                              Eliminar
+                              {t('adminUsers.actions.delete')}
                             </Button>
                           </div>
                         </td>
@@ -540,11 +538,11 @@ export const AdminUsersView = () => {
 
       <ConfirmDialog
         open={Boolean(deletingUser)}
-        title="Eliminar usuario"
+        title={t('adminUsers.confirmDelete.title')}
         description={
-          deletingUser ? `¿Seguro que deseas eliminar a "${deletingUser.username}"? Esta acción no se puede deshacer.` : undefined
+          deletingUser ? t('adminUsers.confirmDelete.description', { username: deletingUser.username }) : undefined
         }
-        confirmLabel="Eliminar"
+        confirmLabel={t('adminUsers.confirmDelete.confirm')}
         variant="danger"
         isConfirming={deleteUserMutation.isPending}
         onConfirm={handleConfirmDelete}

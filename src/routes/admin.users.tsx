@@ -33,6 +33,6 @@ export const Route = createFileRoute('/admin/users')({
   component: AdminUsersRoute,
 })
 
-function AdminUsersRoute() {
+export function AdminUsersRoute() {
   return <AdminUsersView />
 }

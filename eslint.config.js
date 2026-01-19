@@ -21,6 +21,7 @@ export default defineConfig([
     },
     rules: {
       "react/prop-types": "off",
+      "react-refresh/only-export-components": ["error", { allowConstantExport: true, allowExportNames: ["Route"] }],
     },
   },
 ])

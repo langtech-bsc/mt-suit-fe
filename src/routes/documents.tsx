@@ -23,6 +23,6 @@ export const Route = createFileRoute('/documents')({
   component: DocumentTranslatorRoute,
 })
 
-function DocumentTranslatorRoute() {
+export function DocumentTranslatorRoute() {
   return <DocumentTranslatorView />
 }

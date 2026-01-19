@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { FileUpload } from '../../../components/FileUpload'
 import { Alert, Button, Card, Select } from '../../../components/ui'
@@ -15,19 +16,18 @@ import {
 
 type DocStatus = 'idle' | 'ready' | 'processing' | 'done'
 
-const OUTPUT_FORMATS = [
-  { value: 'docx', label: 'Word (.docx)' },
-  { value: 'txt', label: 'Texto (.txt)' },
-] as const
+const OUTPUT_FORMATS = ['docx', 'txt'] as const
+type OutputFormat = (typeof OUTPUT_FORMATS)[number]
 
 export function DocumentTranslatorView() {
+  const { t } = useTranslation()
   const { data: providers, isLoading: isLoadingProviders, error: providersError } = useProvidersQuery()
   const languages = useLanguagesStore((state) => state.languages)
 
   const [sourceLang, setSourceLang] = useState('')
   const [targetLang, setTargetLang] = useState('')
   const [providerId, setProviderId] = useState<number | ''>('')
-  const [outputFormat, setOutputFormat] = useState<(typeof OUTPUT_FORMATS)[number]['value']>('docx')
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>('docx')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [status, setStatus] = useState<DocStatus>('idle')
   const [progress, setProgress] = useState(0)
@@ -56,12 +56,12 @@ export function DocumentTranslatorView() {
   }, [defaultProviderId])
 
   const canProcess = Boolean(selectedFile && sourceLang && targetLang && providerId)
-  
+
   const getProgressLabel = (currentStatus: DocStatus, currentProgress: number): string => {
-    if (currentStatus === 'processing') return `Procesando documento… ${currentProgress}%`
-    if (currentStatus === 'ready') return 'Listo para traducir'
-    if (currentStatus === 'done') return 'Documento traducido'
-    return 'Listo para comenzar'
+    if (currentStatus === 'processing') return t('documents.progress.processing', { progress: currentProgress })
+    if (currentStatus === 'ready') return t('documents.progress.ready')
+    if (currentStatus === 'done') return t('documents.progress.done')
+    return t('documents.progress.idle')
   }
 
   const progressLabel = getProgressLabel(status, progress)
@@ -121,28 +121,28 @@ export function DocumentTranslatorView() {
     onError: (error) => {
       if (isCanceledError(error)) {
         setStatus('idle')
-        setProgress(0)
-        return
-      }
-      setStatus('idle')
       setProgress(0)
-      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido.')
-    },
+      return
+    }
+    setStatus('idle')
+    setProgress(0)
+    setErrorMessage(error instanceof Error ? error.message : t('documents.errors.unknown'))
+  },
   })
 
   const handleTranslate = () => {
     if (!canProcess) {
-      setErrorMessage('Sube un documento y selecciona idiomas / modelo.')
+      setErrorMessage(t('documents.errors.missingSetup'))
       return
     }
     if (!selectedFile) {
-      setErrorMessage('Selecciona un archivo válido.')
+      setErrorMessage(t('documents.errors.invalidFile'))
       return
     }
 
     const extension = normalizeExtension(selectedFile.name)
     if (!extension) {
-      setErrorMessage(`Formato no soportado. Solo se permiten archivos ${DOCUMENT_TRANSLATION_FORMATS_LABEL}.`)
+      setErrorMessage(t('documents.errors.unsupportedFormat', { formats: DOCUMENT_TRANSLATION_FORMATS_LABEL }))
       return
     }
 
@@ -202,7 +202,7 @@ export function DocumentTranslatorView() {
     if (!extension) {
       setSelectedFile(null)
       setResult(null)
-      setErrorMessage(`Formato no soportado. Solo se permiten archivos ${DOCUMENT_TRANSLATION_FORMATS_LABEL}.`)
+      setErrorMessage(t('documents.errors.unsupportedFormat', { formats: DOCUMENT_TRANSLATION_FORMATS_LABEL }))
       return
     }
 
@@ -217,32 +217,39 @@ export function DocumentTranslatorView() {
   const providerOptions =
     providers?.map((prov) => ({
       value: String(prov.id),
-      label: prov.isDefault ? `${prov.name} · ${prov.providerType} (default)` : `${prov.name} · ${prov.providerType}`,
+      label: prov.isDefault
+        ? `${prov.name} · ${prov.providerType}${t('documents.quickConfig.providers.defaultSuffix')}`
+        : `${prov.name} · ${prov.providerType}`,
     })) ?? []
 
   const providerHelperText = useMemo(() => {
-    if (isLoadingProviders) return 'Cargando modelos…'
-    if (providerOptions.length === 0) return 'Sin modelos disponibles'
+    if (isLoadingProviders) return t('documents.quickConfig.providers.loading')
+    if (providerOptions.length === 0) return t('documents.quickConfig.providers.none')
     return undefined
-  }, [isLoadingProviders, providerOptions.length])
+  }, [isLoadingProviders, providerOptions.length, t])
 
   const providersErrorMessage = useMemo(() => {
     if (providersError instanceof Error) return providersError.message
-    if (providersError) return 'No pudimos cargar modelos.'
+    if (providersError) return t('documents.quickConfig.providers.loadError')
     return null
-  }, [providersError])
+  }, [providersError, t])
+
+  const outputFormatOptions = useMemo(
+    () => OUTPUT_FORMATS.map((value) => ({ value, label: t(`documents.outputFormats.${value}`) })),
+    [t],
+  )
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10 pt-6">
       <Card padding="lg" className="space-y-3 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
-          Documentos
+          {t('documents.header.label')}
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Traducción de documentos</h1>
+            <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">{t('documents.header.title')}</h1>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Sube archivos TXT o DOCX y obtén la traducción con seguimiento en tiempo real.
+              {t('documents.header.subtitle')}
             </p>
           </div>
          
@@ -253,16 +260,16 @@ export function DocumentTranslatorView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
-              Configuración rápida
+              {t('documents.quickConfig.label')}
             </p>
-            <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">Modelo, idiomas y formato</h2>
+            <h2 className="text-2xl font-semibold text-bsc-blue-dark dark:text-white">{t('documents.quickConfig.title')}</h2>
           </div>
          
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
          
           <Select
-            label="Modelo / Provider"
+            label={t('documents.quickConfig.modelLabel')}
             value={String(providerId)}
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
@@ -270,19 +277,19 @@ export function DocumentTranslatorView() {
             disabled={status === 'processing' || isLoadingProviders || providerOptions.length === 0} // NOSONAR
           />
           <Select
-            label="Formato de salida"
+            label={t('documents.quickConfig.outputFormatLabel')}
             value={outputFormat}
-            onChange={(event) => setOutputFormat(event.target.value as (typeof OUTPUT_FORMATS)[number]['value'])}
-            options={OUTPUT_FORMATS.map((item) => ({ value: item.value, label: item.label }))}
-            helperText="Se mantiene el formato del archivo traducido."
+            onChange={(event) => setOutputFormat(event.target.value as OutputFormat)}
+            options={outputFormatOptions}
+            helperText={t('documents.quickConfig.outputFormatHelper')}
             disabled
           />
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
 
-         <LanguageSelector label="Idioma origen" selectedCode={sourceLang} onChange={setSourceLang} />
+         <LanguageSelector label={t('documents.quickConfig.sourceLanguageLabel')} selectedCode={sourceLang} onChange={setSourceLang} />
           <LanguageSelector
-            label="Idioma destino"
+            label={t('documents.quickConfig.targetLanguageLabel')}
             selectedCode={targetLang}
             onChange={setTargetLang}
             excludeCode={sourceLang}
@@ -291,21 +298,23 @@ export function DocumentTranslatorView() {
       </Card>
 
       {errorMessage && (
-        <Alert variant="danger" title="Revisa la configuración" description={errorMessage} className="border border-red-200" />
+        <Alert variant="danger" title={t('documents.alerts.reviewTitle')} description={errorMessage} className="border border-red-200" />
       )}
       {providersError && (
-        <Alert variant="warning" title="Modelos no disponibles" description={providersErrorMessage ?? undefined} />
+        <Alert variant="warning" title={t('documents.alerts.providersUnavailableTitle')} description={providersErrorMessage ?? undefined} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 1</p>
-              <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Carga y configuración</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+                {t('documents.step1.label')}
+              </p>
+              <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">{t('documents.step1.title')}</h2>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
-              <span>Formatos: {DOCUMENT_TRANSLATION_FORMATS_LABEL}</span>
+              <span>{t('documents.step1.formatsLabel', { formats: DOCUMENT_TRANSLATION_FORMATS_LABEL })}</span>
             </div>
           </div>
 
@@ -318,15 +327,15 @@ export function DocumentTranslatorView() {
 
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={handleReset}>
-              Limpiar
+              {t('documents.step1.reset')}
             </Button>
             {status === 'processing' ? (
               <Button variant="danger" onClick={handleCancel}>
-                Cancelar
+                {t('documents.step1.cancel')}
               </Button>
             ) : (
               <Button variant="primary" onClick={handleTranslate} disabled={!canProcess}>
-                Traducir documento
+                {t('documents.step1.translate')}
               </Button>
             )}
             
@@ -335,10 +344,12 @@ export function DocumentTranslatorView() {
 
         <div className="space-y-4">
           <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">Paso 2</p>
-            <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Seguimiento</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
+              {t('documents.step2.label')}
+            </p>
+            <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">{t('documents.step2.title')}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Barra de progreso y estado del documento en tiempo real.
+              {t('documents.step2.subtitle')}
             </p>
             <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center justify-between text-sm font-medium text-bsc-blue-dark dark:text-white">
@@ -352,11 +363,11 @@ export function DocumentTranslatorView() {
                 />
               </div>
               <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-                Progreso en vivo del procesamiento y traducción del archivo.
+                {t('documents.step2.liveProgressHint')}
               </p>
             </div>
             <Button variant="outline" className="w-full" onClick={handleDownload} disabled={!result || status === 'processing'}>
-              Descargar
+              {t('documents.step2.download')}
             </Button>
           </Card>
 
@@ -364,12 +375,12 @@ export function DocumentTranslatorView() {
       </div>
 
       <Card padding="lg" className="space-y-2 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">Notas de integración</h3>
+        <h3 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">{t('documents.integrationNotes.title')}</h3>
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
-          <li>Traducción de documentos con seguimiento y descarga directa.</li>
-          <li>Respeta los idiomas soportados por el modelo seleccionado.</li>
-          <li>Soporte para streaming o polling según el proveedor.</li>
-          <li>Descarga habilitada tras finalizar el procesamiento.</li>
+          <li>{t('documents.integrationNotes.items.trackingDownload')}</li>
+          <li>{t('documents.integrationNotes.items.respectModelLanguages')}</li>
+          <li>{t('documents.integrationNotes.items.streamingOrPolling')}</li>
+          <li>{t('documents.integrationNotes.items.downloadAfterDone')}</li>
         </ul>
       </Card>
     </div>

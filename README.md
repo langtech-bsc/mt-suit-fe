@@ -17,7 +17,15 @@ Interfaz web para el módulo de traducción, grammar checker y post-editing del 
 - [Vite](https://vitejs.dev/) + React 19 + TypeScript
 - [@tanstack/router](https://tanstack.com/router) para rutas declarativas y protecciones
 - [Zustand](https://github.com/pmndrs/zustand) para el estado de autenticación
+- [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/) para internacionalización (UI language switch)
 - UI propia ubicada en `src/components/ui`
+
+### 🌍 Internacionalización (i18n)
+
+- Config: `src/i18n.ts`
+- Resources: `src/i18n/resources.ts` (agrega/modifica idiomas aquí)
+- Literales por idioma: `src/i18n/locales/{es,en,ca}/common.ts`
+- Persistencia de idioma: `localStorage.appLanguage` (soporta `es`, `en`, `ca`)
 
 ## 🚀 Puesta en marcha
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Alert, Button, Card, ConfirmDialog, Input, PageLoader, Select, Switch } from '../../../components/ui'
 import { useLanguagesQuery } from '../../languages/queries/useLanguagesQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
@@ -15,6 +16,7 @@ const formatIso = (value: string) => value.trim()
 
 export const AdminLanguagesView = () => {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
   const { isLoading, isFetching, error, refetch } = useLanguagesQuery()
   const languages = useLanguagesStore((state) => state.languages)
   const upsertLanguage = useLanguagesStore((state) => state.upsertLanguage)
@@ -60,7 +62,7 @@ export const AdminLanguagesView = () => {
       upsertLanguage(created)
       queryClient.invalidateQueries({ queryKey: ['languages'] })
       setCreateOpen(false)
-      setFeedback({ variant: 'success', message: `Idioma "${created.name}" añadido.` })
+      setFeedback({ variant: 'success', message: t('adminLanguages.feedback.created', { name: created.name }) })
     },
     onError: (err) => setFormError(err.message),
   })
@@ -71,7 +73,7 @@ export const AdminLanguagesView = () => {
       upsertLanguage(updated)
       queryClient.invalidateQueries({ queryKey: ['languages'] })
       setEditingLanguage(null)
-      setFeedback({ variant: 'success', message: `Idioma "${updated.name}" actualizado.` })
+      setFeedback({ variant: 'success', message: t('adminLanguages.feedback.updated', { name: updated.name }) })
     },
     onError: (err) => setFormError(err.message),
   })
@@ -81,7 +83,7 @@ export const AdminLanguagesView = () => {
     onSuccess: () => {
       if (deletingLanguage) {
         removeLanguage(deletingLanguage.id)
-        setFeedback({ variant: 'success', message: `Idioma "${deletingLanguage.name}" eliminado.` })
+        setFeedback({ variant: 'success', message: t('adminLanguages.feedback.deleted', { name: deletingLanguage.name }) })
       }
       queryClient.invalidateQueries({ queryKey: ['languages'] })
       setDeletingLanguage(null)
@@ -117,7 +119,7 @@ export const AdminLanguagesView = () => {
   const handleSubmitCreate = (payload: LanguageUpsertInput) => {
     const iso = formatIso(payload.isoCode)
     if (hasDuplicateIso(iso)) {
-      setFormError(`El código ISO "${iso}" ya existe.`)
+      setFormError(t('adminLanguages.errors.duplicateIso', { iso }))
       return
     }
     setFormError(null)
@@ -130,7 +132,7 @@ export const AdminLanguagesView = () => {
     }
     const iso = formatIso(payload.isoCode)
     if (hasDuplicateIso(iso, editingLanguage.id)) {
-      setFormError(`El código ISO "${iso}" ya existe.`)
+      setFormError(t('adminLanguages.errors.duplicateIso', { iso }))
       return
     }
     setFormError(null)
@@ -158,7 +160,7 @@ export const AdminLanguagesView = () => {
   const isMutating = createMutation.isPending ?? updateMutation.isPending ?? deleteMutation.isPending
 
   if (isLoading) {
-    return <PageLoader message="Cargando idiomas…" />
+    return <PageLoader message={t('adminLanguages.loading')} />
   }
 
   return (
@@ -166,19 +168,19 @@ export const AdminLanguagesView = () => {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-bsc-blue-medium dark:text-slate-300">
-            Administración
+            {t('adminLanguages.header.sectionLabel')}
           </p>
-          <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">Gestión de Idiomas</h1>
+          <h1 className="text-3xl font-semibold text-bsc-blue-dark dark:text-white">{t('adminLanguages.header.title')}</h1>
           <p className="text-sm text-gray-600 dark:text-slate-300">
-            Añade, edita y deshabilita idiomas. Los selectores se actualizan en tiempo real.
+            {t('adminLanguages.header.subtitle')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            {isFetching ? 'Actualizando…' : 'Refrescar'}
+            {isFetching ? t('adminLanguages.actions.refreshing') : t('adminLanguages.actions.refresh')}
           </Button>
           <Button variant="primary" size="sm" onClick={handleOpenCreate} disabled={isMutating}>
-            Añadir idioma
+            {t('adminLanguages.actions.addLanguage')}
           </Button>
         </div>
       </header>
@@ -186,56 +188,53 @@ export const AdminLanguagesView = () => {
       {feedback && (
         <Alert
           variant={feedback.variant === 'success' ? 'success' : 'danger'}
-          title={feedback.variant === 'success' ? 'Listo' : 'Error'}
+          title={feedback.variant === 'success' ? t('adminLanguages.feedback.successTitle') : t('adminLanguages.feedback.errorTitle')}
           description={feedback.message}
         />
       )}
-      {error && <Alert variant="danger" title="No pudimos cargar idiomas" description={error.message} />}
+      {error && <Alert variant="danger" title={t('adminLanguages.errors.loadTitle')} description={error.message} />}
 
       <div className="grid gap-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/40 md:grid-cols-3">
         <div className="md:col-span-2">
           <Input
-            label="Buscar"
+            label={t('adminLanguages.filters.searchLabel')}
             value={filterQuery}
             onChange={(event) => setFilterQuery(event.target.value)}
-            placeholder="Filtrar por nombre o ISO…"
+            placeholder={t('adminLanguages.filters.searchPlaceholder')}
           />
         </div>
         <Select
-          label="Estado"
+          label={t('adminLanguages.filters.statusLabel')}
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
           options={[
-            { value: 'all', label: 'Todos' },
-            { value: 'active', label: 'Activos' },
-            { value: 'inactive', label: 'Inactivos' },
+            { value: 'all', label: t('adminLanguages.filters.statusAll') },
+            { value: 'active', label: t('adminLanguages.filters.statusActive') },
+            { value: 'inactive', label: t('adminLanguages.filters.statusInactive') },
           ]}
         />
       </div>
 
       <Card padding="lg" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600 dark:text-slate-400">
-          <p>
-            Mostrando <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{filteredLanguages.length}</span> de{' '}
-            <span className="font-semibold text-bsc-blue-dark dark:text-slate-100">{languages.length}</span>
-          </p>
+          <p>{t('adminLanguages.summary.showing', { shown: filteredLanguages.length, total: languages.length })}</p>
         </div>
 
         {filteredLanguages.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-            <p className="text-base font-semibold text-bsc-blue-dark dark:text-white">Sin idiomas</p>
-            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Añade un idioma para que aparezca en los selectores.</p>
+            <p className="text-base font-semibold text-bsc-blue-dark dark:text-white">{t('adminLanguages.empty.title')}</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{t('adminLanguages.empty.description')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-slate-700">
               <thead className="text-xs uppercase text-gray-500 dark:text-slate-400">
                 <tr className="bg-gray-50 dark:bg-slate-900/40">
-                  <th className="px-4 py-3 font-semibold">Nombre</th>
-                  <th className="px-4 py-3 font-semibold">ISO</th>
-                  <th className="px-4 py-3 font-semibold">Nativo</th>
-                  <th className="px-4 py-3 font-semibold">Activo</th>
-                  <th className="px-4 py-3 font-semibold">Acciones</th>
+                  <th className="px-4 py-3 font-semibold">{t('adminLanguages.table.name')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('adminLanguages.table.iso')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('adminLanguages.table.native')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('adminLanguages.table.active')}</th>
+                  <th className="px-4 py-3 font-semibold">{t('adminLanguages.table.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -245,11 +244,11 @@ export const AdminLanguagesView = () => {
                     <tr key={lang.id} className="bg-white transition hover:bg-blue-50/40 dark:bg-slate-900 dark:hover:bg-slate-800">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-bsc-blue-dark dark:text-slate-100">{lang.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">ID {lang.id}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{t('adminLanguages.table.idLabel', { id: lang.id })}</p>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-slate-200">{lang.isoCode}</td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
-                        {lang.nativeName ?? '—'}
+                        {lang.nativeName ?? t('adminLanguages.table.nativeFallback')}
                       </td>
                       <td className="px-4 py-3">
                         <Switch
@@ -261,10 +260,10 @@ export const AdminLanguagesView = () => {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleOpenEdit(lang)} disabled={isMutating}>
-                            Editar
+                            {t('adminLanguages.actions.edit')}
                           </Button>
                           <Button variant="danger" size="sm" onClick={() => handleDelete(lang)} disabled={isMutating ?? lang.id < 0}>
-                            Eliminar
+                            {t('adminLanguages.actions.delete')}
                           </Button>
                         </div>
                       </td>
@@ -298,13 +297,13 @@ export const AdminLanguagesView = () => {
 
       <ConfirmDialog
         open={Boolean(deletingLanguage)}
-        title="Eliminar idioma"
+        title={t('adminLanguages.confirmDelete.title')}
         description={
           deletingLanguage
-            ? `Se eliminará "${deletingLanguage.name}" (${deletingLanguage.isoCode}). Esta acción no se puede deshacer.`
+            ? t('adminLanguages.confirmDelete.description', { name: deletingLanguage.name, iso: deletingLanguage.isoCode })
             : undefined
         }
-        confirmLabel="Eliminar"
+        confirmLabel={t('adminLanguages.confirmDelete.confirm')}
         variant="danger"
         isConfirming={deleteMutation.isPending}
         onClose={() => setDeletingLanguage(null)}
