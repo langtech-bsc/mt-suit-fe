@@ -22,7 +22,6 @@ import {
 } from '../services/translator.service'
 
 const MAX_CHARACTERS = 25_000
-const AUTO_TRANSLATE_DEBOUNCE_MS = 400
 const POST_EDIT_TONES: PostEditTone[] = ['conciso', 'formal', 'amigable']
 const POST_EDIT_LENGTHS: PostEditLength[] = ['original', 'shorter', 'longer']
 const EXPORT_FORMATS = ['txt', 'docx'] as const
@@ -846,7 +845,8 @@ export const TranslatorView = () => {
     textareaRef: inputTextareaRef,
   })
 
-  const runProcessRef = useRef<((origin: 'manual' | 'auto') => Promise<void>) | null>(null)
+  const processRunIdRef = useRef(0)
+  const translateStreamRunIdRef = useRef(0)
 
   useEffect(() => {
     setOutputText('')
@@ -1059,6 +1059,7 @@ export const TranslatorView = () => {
   const performTranslate = useCallback(async () => {
     const abortController = new AbortController()
     translateAbortRef.current = abortController
+    const streamRunId = translateStreamRunIdRef.current
 
     return requestTranslationStream(
       {
@@ -1068,6 +1069,9 @@ export const TranslatorView = () => {
         providerId: selectedProviderId,
       },
       (_delta, fullText) => {
+        if (translateStreamRunIdRef.current !== streamRunId) {
+          return
+        }
         if (mode === 'post-editing') {
           setTranslationText(fullText)
         } else {
@@ -1114,15 +1118,17 @@ export const TranslatorView = () => {
     } satisfies Record<TranslatorMode, () => Promise<string>>
   }, [performGrammar, performTranslate])
 
-  const runProcess = useCallback(async (origin: 'manual' | 'auto') => {
-    const isManual = origin === 'manual'
-
+  const runProcess = useCallback(async () => {
     if (!canTranslateInput) {
-      if (isManual) setStatus(buildMissingStatus(t, manualMissingMessage))
+      setStatus(buildMissingStatus(t, manualMissingMessage))
       return
     }
 
+    const runId = processRunIdRef.current + 1
+    processRunIdRef.current = runId
+
     const isTranslateLikeMode = mode !== 'grammar'
+    if (isTranslateLikeMode) translateStreamRunIdRef.current = runId
 
     if (isTranslateLikeMode) abortOngoingTranslation(translateAbortRef)
 
@@ -1137,32 +1143,36 @@ export const TranslatorView = () => {
         setOutputText,
       })
     }
-    if (isManual) setStatus(buildManualProcessingStatus(t, activeConfig.actionLabel))
+    setStatus(buildManualProcessingStatus(t, activeConfig.actionLabel))
 
     try {
       const run = modeRunner[mode]
       const result = await run()
 
+      if (processRunIdRef.current !== runId) {
+        return
+      }
       applyRunResult({ mode, result, setTranslationText, setOutputText })
-      if (isManual) setStatus(buildManualSuccessStatus(t, mode, activeConfig.label))
+      setStatus(buildManualSuccessStatus(t, mode, activeConfig.label))
     } catch (error) {
       if (isCanceledError(error)) {
         return
       }
+      if (processRunIdRef.current !== runId) {
+        return
+      }
       setStatus(buildManualErrorStatus(t, error))
     } finally {
-      translateAbortRef.current = null
-      setIsProcessing(false)
-      setProcessingTask(null)
+      if (processRunIdRef.current === runId) {
+        translateAbortRef.current = null
+        setIsProcessing(false)
+        setProcessingTask(null)
+      }
     }
   }, [activeConfig.actionLabel, activeConfig.label, canTranslateInput, manualMissingMessage, mode, modeRunner, t])
 
-  useEffect(() => {
-    runProcessRef.current = runProcess
-  }, [runProcess])
-
   const handleProcess = async () => {
-    await runProcess('manual')
+    await runProcess()
   }
 
   const handlePostEdit = useCallback(async () => {
@@ -1213,36 +1223,7 @@ export const TranslatorView = () => {
     }
   }, [canPostEditText, isProcessing, performPostEdit, postEditText, t])
 
-  useEffect(() => {
-    if (mode !== 'translate') {
-      return
-    }
-
-    if (charError) {
-      return
-    }
-
-    const trimmed = inputText.trim()
-    if (!trimmed) {
-      setOutputText('')
-      return
-    }
-
-    if (providerId === null) {
-      return
-    }
-
-    translateAbortRef.current?.abort()
-    translateAbortRef.current = null
-
-    const timeoutId = window.setTimeout(() => {
-     runProcessRef.current?.('auto')
-    }, AUTO_TRANSLATE_DEBOUNCE_MS)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [inputText, sourceLang, targetLang, providerId, mode, charError])
+  // Traducción solo manual (click en "Traducir"): no auto-ejecución al escribir.
 
   const handleExport = async () => {
     if (isExportDisabled) return

@@ -1,23 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LanguageSelector } from '../../../components/LanguageSelector'
 import { FileUpload } from '../../../components/FileUpload'
 import { Alert, Button, Card, Select } from '../../../components/ui'
 import { useProvidersQuery } from '../../providers/queries/useProvidersQuery'
 import { useLanguagesStore } from '../../languages/store/languages.store'
-import { documentTranslationService, type DocumentTranslationResult } from '../services/documentTranslation.service'
 import {
   DOCUMENT_TRANSLATION_ACCEPT,
   DOCUMENT_TRANSLATION_FORMATS_LABEL,
   DOCUMENT_TRANSLATION_SUPPORTED_EXTENSIONS,
   type DocumentTranslationSupportedExtension,
 } from '../../../constants/fileTypes'
-
-type DocStatus = 'idle' | 'ready' | 'processing' | 'done'
-
-const OUTPUT_FORMATS = ['docx', 'txt'] as const
-type OutputFormat = (typeof OUTPUT_FORMATS)[number]
 
 export function DocumentTranslatorView() {
   const { t } = useTranslation()
@@ -27,14 +20,9 @@ export function DocumentTranslatorView() {
   const [sourceLang, setSourceLang] = useState('')
   const [targetLang, setTargetLang] = useState('')
   const [providerId, setProviderId] = useState<number | ''>('')
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>('docx')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [status, setStatus] = useState<DocStatus>('idle')
-  const [progress, setProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [result, setResult] = useState<DocumentTranslationResult | null>(null)
-
-  const abortControllerRef = useRef<AbortController | null>(null)
+  const [isPendingImplementationAlert, setIsPendingImplementationAlert] = useState(false)
 
   const defaultSource = useMemo(
     () => languages.find((lang) => lang.isoCode.toLowerCase() === 'es')?.isoCode ?? languages[0]?.isoCode ?? '',
@@ -57,15 +45,6 @@ export function DocumentTranslatorView() {
 
   const canProcess = Boolean(selectedFile && sourceLang && targetLang && providerId)
 
-  const getProgressLabel = (currentStatus: DocStatus, currentProgress: number): string => {
-    if (currentStatus === 'processing') return t('documents.progress.processing', { progress: currentProgress })
-    if (currentStatus === 'ready') return t('documents.progress.ready')
-    if (currentStatus === 'done') return t('documents.progress.done')
-    return t('documents.progress.idle')
-  }
-
-  const progressLabel = getProgressLabel(status, progress)
-
   const normalizeExtension = useCallback((filename: string): DocumentTranslationSupportedExtension | null => {
     const lower = filename.trim().toLowerCase()
     const match = lower.match(/\.([a-z0-9]+)$/)
@@ -76,142 +55,54 @@ export function DocumentTranslatorView() {
       : null
   }, [])
 
-  const downloadBlob = useCallback((blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }, [])
-
-  const isCanceledError = (error: unknown) => {
-    if (!(error instanceof Error)) return false
-    const message = error.message.toLowerCase()
-    return message.includes('canceled') || message.includes('cancelled') || message.includes('aborted')
-  }
-
-  const translateMutation = useMutation({
-    mutationFn: async (params: {
-      file: File
-      sourceLanguageCode: string
-      targetLanguageCode: string
-      providerId?: number | null
-      signal: AbortSignal
-    }) => {
-      return documentTranslationService.translate({
-        file: params.file,
-        sourceLanguageCode: params.sourceLanguageCode,
-        targetLanguageCode: params.targetLanguageCode,
-        providerId: params.providerId,
-        asFile: false,
-        signal: params.signal,
-        onProgress: setProgress,
-      })
-    },
-    onSuccess: (data) => {
-      setResult(data)
-      setStatus('done')
-      setProgress(100)
-      setErrorMessage(null)
-      downloadBlob(data.blob, data.translatedFilename)
-    },
-    onError: (error) => {
-      if (isCanceledError(error)) {
-        setStatus('idle')
-      setProgress(0)
-      return
-    }
-    setStatus('idle')
-    setProgress(0)
-    setErrorMessage(error instanceof Error ? error.message : t('documents.errors.unknown'))
-  },
-  })
-
   const handleTranslate = () => {
     if (!canProcess) {
       setErrorMessage(t('documents.errors.missingSetup'))
+      setIsPendingImplementationAlert(false)
       return
     }
     if (!selectedFile) {
       setErrorMessage(t('documents.errors.invalidFile'))
+      setIsPendingImplementationAlert(false)
       return
     }
 
     const extension = normalizeExtension(selectedFile.name)
     if (!extension) {
       setErrorMessage(t('documents.errors.unsupportedFormat', { formats: DOCUMENT_TRANSLATION_FORMATS_LABEL }))
+      setIsPendingImplementationAlert(false)
       return
     }
 
-    setOutputFormat(extension)
-    setErrorMessage(null)
-    setStatus('processing')
-    setProgress(0)
-    setResult(null)
-
-    abortControllerRef.current?.abort()
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
-    translateMutation.mutate({
-      file: selectedFile,
-      sourceLanguageCode: sourceLang,
-      targetLanguageCode: targetLang,
-      providerId: typeof providerId === 'number' ? providerId : undefined,
-      signal: controller.signal,
-    })
+    setErrorMessage(t('documents.alerts.pendingImplementationDescription'))
+    setIsPendingImplementationAlert(true)
   }
 
   const handleReset = () => {
-    abortControllerRef.current?.abort()
-    abortControllerRef.current = null
-    translateMutation.reset()
     setSelectedFile(null)
-    setResult(null)
-    setStatus('idle')
-    setProgress(0)
     setErrorMessage(null)
-  }
-
-  const handleCancel = () => {
-    abortControllerRef.current?.abort()
-    abortControllerRef.current = null
-    setStatus('idle')
-    setProgress(0)
-  }
-
-  const handleDownload = () => {
-    if (!result) return
-    downloadBlob(result.blob, result.translatedFilename)
+    setIsPendingImplementationAlert(false)
   }
 
   const handleFileSelect = (file: File | null) => {
     if (!file) {
       setSelectedFile(null)
-      setResult(null)
       setErrorMessage(null)
-      setProgress(0)
-      setStatus('idle')
+      setIsPendingImplementationAlert(false)
       return
     }
 
     const extension = normalizeExtension(file.name)
     if (!extension) {
       setSelectedFile(null)
-      setResult(null)
       setErrorMessage(t('documents.errors.unsupportedFormat', { formats: DOCUMENT_TRANSLATION_FORMATS_LABEL }))
+      setIsPendingImplementationAlert(false)
       return
     }
 
     setSelectedFile(file)
-    setResult(null)
     setErrorMessage(null)
-    setOutputFormat(extension)
-    setProgress(0)
-    setStatus('idle')
+    setIsPendingImplementationAlert(false)
   }
 
   const providerOptions =
@@ -234,10 +125,8 @@ export function DocumentTranslatorView() {
     return null
   }, [providersError, t])
 
-  const outputFormatOptions = useMemo(
-    () => OUTPUT_FORMATS.map((value) => ({ value, label: t(`documents.outputFormats.${value}`) })),
-    [t],
-  )
+  const alertVariant = isPendingImplementationAlert ? 'info' : 'danger'
+  const alertTitle = isPendingImplementationAlert ? t('documents.alerts.pendingImplementationTitle') : t('documents.alerts.reviewTitle')
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10 pt-6">
@@ -274,15 +163,7 @@ export function DocumentTranslatorView() {
             onChange={(event) => setProviderId(Number(event.target.value))}
             options={providerOptions}
             helperText={providerHelperText}
-            disabled={status === 'processing' || isLoadingProviders || providerOptions.length === 0} // NOSONAR
-          />
-          <Select
-            label={t('documents.quickConfig.outputFormatLabel')}
-            value={outputFormat}
-            onChange={(event) => setOutputFormat(event.target.value as OutputFormat)}
-            options={outputFormatOptions}
-            helperText={t('documents.quickConfig.outputFormatHelper')}
-            disabled
+            disabled={isLoadingProviders || providerOptions.length === 0} // NOSONAR
           />
         </div>
         <div className="grid gap-3 md:grid-cols-2 ">
@@ -298,14 +179,14 @@ export function DocumentTranslatorView() {
       </Card>
 
       {errorMessage && (
-        <Alert variant="danger" title={t('documents.alerts.reviewTitle')} description={errorMessage} className="border border-red-200" />
+        <Alert variant={alertVariant} title={alertTitle} description={errorMessage} />
       )}
       {providersError && (
         <Alert variant="warning" title={t('documents.alerts.providersUnavailableTitle')} description={providersErrorMessage ?? undefined} />
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60 lg:col-span-2">
+      <div className="grid gap-5">
+        <Card padding="lg" className="space-y-4 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
@@ -329,49 +210,12 @@ export function DocumentTranslatorView() {
             <Button variant="outline" onClick={handleReset}>
               {t('documents.step1.reset')}
             </Button>
-            {status === 'processing' ? (
-              <Button variant="danger" onClick={handleCancel}>
-                {t('documents.step1.cancel')}
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={handleTranslate} disabled={!canProcess}>
-                {t('documents.step1.translate')}
-              </Button>
-            )}
+            <Button variant="primary" onClick={handleTranslate} disabled={!canProcess}>
+              {t('documents.step1.translate')}
+            </Button>
             
           </div>
         </Card>
-
-        <div className="space-y-4">
-          <Card padding="lg" className="space-y-3 border border-gray-100 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-bsc-blue-medium dark:text-bsc-blue-medium-dark">
-              {t('documents.step2.label')}
-            </p>
-            <h2 className="text-lg font-semibold text-bsc-blue-dark dark:text-white">{t('documents.step2.title')}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              {t('documents.step2.subtitle')}
-            </p>
-            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-              <div className="flex items-center justify-between text-sm font-medium text-bsc-blue-dark dark:text-white">
-                <span>{progressLabel}</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800">
-                <div
-                  className="h-2 rounded-full bg-bsc-blue-medium transition-all dark:bg-bsc-blue-medium-dark"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-                {t('documents.step2.liveProgressHint')}
-              </p>
-            </div>
-            <Button variant="outline" className="w-full" onClick={handleDownload} disabled={!result || status === 'processing'}>
-              {t('documents.step2.download')}
-            </Button>
-          </Card>
-
-        </div>
       </div>
 
       <Card padding="lg" className="space-y-2 border border-gray-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">

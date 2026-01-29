@@ -236,6 +236,8 @@ export const common = {
     alerts: {
       reviewTitle: 'Review your setup',
       providersUnavailableTitle: 'Models unavailable',
+      pendingImplementationTitle: 'Pending implementation',
+      pendingImplementationDescription: 'Document translation is pending implementation.',
     },
     step1: {
       label: 'Step 1',
