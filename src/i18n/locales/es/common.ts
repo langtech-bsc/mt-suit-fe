@@ -237,6 +237,8 @@ export const common = {
     alerts: {
       reviewTitle: 'Revisa la configuración',
       providersUnavailableTitle: 'Modelos no disponibles',
+      pendingImplementationTitle: 'Pendiente de implementación',
+      pendingImplementationDescription: 'La traducción de documentos está pendiente de implementación.',
     },
     step1: {
       label: 'Paso 1',
