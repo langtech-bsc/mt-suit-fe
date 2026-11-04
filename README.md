@@ -98,6 +98,9 @@ src/
 2. Exponer CRUD real de usuarios/roles en `/admin/users`.
 3. Conectar las acciones del traductor a los endpoints reales cuando estén listos.
 
+# Acknowledgements
+
+This work was funded by the Ministerio para la Transformación Digital y de la Función Pública - Funded by EU – NextGenerationEU within the framework of the [project ILENIA] (https://proyectoilenia.es/) with reference 2022/TL22/00215337 
 ---
 
 ## 📚 Documentación de features
